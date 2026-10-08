@@ -64,7 +64,7 @@ button{border:0;border-radius:9px;padding:10px 14px;cursor:pointer;font-weight:6
       <button class="secondary" onclick="loadRegistrations()">Refresh</button>
     </div>
     <div class="export-bar"><button class="primary" onclick="exportXlsx()">Export Excel</button><button class="secondary" onclick="exportCsv()">Export Filtered CSV</button><button class="secondary" onclick="printReport()">Print Report</button></div><div id="mobileRegistrations"></div><div class="table-wrap"><table><thead><tr>
-      <th>Flat</th><th>Resident</th><th>Mobile</th><th>Vehicle</th><th>Type</th><th>RC</th><th>Status</th><th>RFID</th><th>Actions</th>
+      <th>Flat</th><th>Resident</th><th>Mobile</th><th>Vehicle</th><th>Type</th><th>RFID / QR</th><th>RC</th><th>Status</th><th>RFID</th><th>Actions</th>
     </tr></thead><tbody id="registrationBody"></tbody></table></div>
   </div>
 
@@ -180,6 +180,7 @@ function renderRegistrations(){
     <td>${esc(r.mobile)}</td>
     <td><b>${esc(r.vehicle_registration_no)}</b><br><span class="muted">${esc(r.vehicle_company||'')}</span></td>
     <td>${esc(r.vehicle_type)}</td>
+    <td>${esc(r.access_device||"-")}</td>
     <td><button class="secondary" onclick="viewRc('${r.id}')">View RC</button></td>
     <td>${statusBadge(r.status)}</td>
     <td>${statusBadge(r.rfid_status)}</td>
@@ -198,6 +199,7 @@ function renderRegistrations(){
       <div><div class="mc-label">Vehicle</div><div class="mc-value">${esc(r.vehicle_registration_no||'-')}</div></div>
       <div><div class="mc-label">Company</div><div class="mc-value">${esc(r.vehicle_company||'-')}</div></div>
       <div><div class="mc-label">Type</div><div class="mc-value">${esc(r.vehicle_type||'-')}</div></div>
+      <div><div class="mc-label">RFID / QR</div><div class="mc-value">${esc(r.access_device||'-')}</div></div>
       <div><div class="mc-label">RFID</div><div class="mc-value">${statusBadge(r.rfid_status)}</div></div>
     </div>
     <div class="actions"><button class="secondary" onclick="viewRc('${r.id}')">View RC</button><button class="success" onclick="approveRegistration('${r.id}')">Approve</button><button class="danger" onclick="rejectRegistration('${r.id}')">Reject</button><button class="whatsapp" onclick="openWhatsApp('${r.id}')">Send WhatsApp</button></div>
@@ -241,9 +243,9 @@ function getFilteredRows(){
 }
 function csvCell(v){const s=String(v??'');return '"'+s.replace(/"/g,'""')+'"';}
 function exportCsvRows(rows,filename){
-  const headers=['Flat','Resident Name','Resident Status','Mobile','Vehicle Company','Vehicle Number','Vehicle Type','Status','RFID Status','Verification Remarks','Submitted At'];
+  const headers=['Flat','Resident Name','Resident Status','Mobile','Vehicle Company','Vehicle Number','Vehicle Type','RFID / QR','Status','RFID Status','Verification Remarks','Submitted At'];
   const lines=[headers.map(csvCell).join(',')];
-  rows.forEach(r=>lines.push([r.wing+'-'+r.unit_number,r.resident_name,r.resident_status,r.mobile,r.vehicle_company,r.vehicle_registration_no,r.vehicle_type,r.status,r.rfid_status,r.verification_remarks,r.created_at].map(csvCell).join(',')));
+  rows.forEach(r=>lines.push([r.wing+'-'+r.unit_number,r.resident_name,r.resident_status,r.mobile,r.vehicle_company,r.vehicle_registration_no,r.vehicle_type,r.access_device,r.status,r.rfid_status,r.verification_remarks,r.created_at].map(csvCell).join(',')));
   const blob=new Blob(['\\ufeff'+lines.join('\\r\\n')],{type:'text/csv;charset=utf-8;'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=filename;a.click();URL.revokeObjectURL(url);
 }
 function exportCsv(){const rows=getFilteredRows();exportCsvRows(rows,'Panvelkar_Stanford_Vehicle_Registrations_Filtered.csv');}
@@ -251,7 +253,7 @@ function exportAllCsv(){exportCsvRows(registrations,'Panvelkar_Stanford_Vehicle_
 function exportXlsx(){
   const rows=getFilteredRows();
   if(!rows.length){alert('No records match the current filters.');return;}
-  const data=rows.map(r=>({Flat:r.wing+'-'+r.unit_number,'Resident Name':r.resident_name||'', 'Resident Status':r.resident_status||'',Mobile:r.mobile||'',Email:r.email||'','Vehicle Company':r.vehicle_company||'','Vehicle Number':r.vehicle_registration_no||'','Vehicle Type':r.vehicle_type||'',Status:r.status||'','RFID Status':r.rfid_status||'','Verification Remarks':r.verification_remarks||'','Submitted At':r.created_at||''}));
+  const data=rows.map(r=>({Flat:r.wing+'-'+r.unit_number,'Resident Name':r.resident_name||'', 'Resident Status':r.resident_status||'',Mobile:r.mobile||'',Email:r.email||'','Vehicle Company':r.vehicle_company||'','Vehicle Number':r.vehicle_registration_no||'','Vehicle Type':r.vehicle_type||'','RFID / QR':r.access_device||'',Status:r.status||'','RFID Status':r.rfid_status||'','Verification Remarks':r.verification_remarks||'','Submitted At':r.created_at||''}));
   const ws=XLSX.utils.json_to_sheet(data); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Registrations'); XLSX.writeFile(wb,'Panvelkar_Stanford_Vehicle_Registrations.xlsx');
 }
 function printReport(){
