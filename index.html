@@ -244,7 +244,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue)!important;box-s
         <div class="form-grid">
           <label>
             <span>Name</span>
-            <input id="name" type="text" required placeholder="Enter resident name">
+            <input id="name" type="text" required placeholder="name@example.com">
           </label>
 
           <label>
@@ -380,7 +380,7 @@ function buildUnits(wing) {
 
   if (!wing) return;
 
-  db.from("rfid_unit_master")
+  db.from("vehicle_unit_master")
     .select("unit_number")
     .eq("wing", wing)
     .eq("active", true)
@@ -394,14 +394,14 @@ function buildUnits(wing) {
       for (const row of data || []) {
         const option = document.createElement("option");
         option.value = row.unit_number;
-        option.textContent = row.unit_number;
+        option.textContent = wing === "Shop" ? `Shop-${row.unit_number}` : `${wing}-${String(row.unit_number).padStart(4, "0")}`;
         unitEl.appendChild(option);
       }
       unitEl.disabled = false;
     });
 }
 
-wingEl.addEventListener("change", () => buildUnits(wingEl.value));\n\nconst companyEl = document.getElementById("vehicleCompany");\nconst otherCompanyWrap = document.getElementById("otherCompanyWrap");\nconst otherCompanyEl = document.getElementById("otherCompany");\ncompanyEl.addEventListener("change", () => { const other = companyEl.value === "Other – Enter Manually"; otherCompanyWrap.hidden = !other; otherCompanyEl.required = other; if (!other) otherCompanyEl.value = ""; });
+wingEl.addEventListener("change", () => buildUnits(wingEl.value));
 
 filesEl.addEventListener("change", () => {
   const files = [...filesEl.files];
@@ -465,14 +465,14 @@ function standardRcFileName(wing, unit, vehicleNumber, index, file) {
   const safeUnit = makeSafeFileName(unit.toUpperCase());
   const safeVehicle = makeSafeFileName(vehicleNumber.toUpperCase());
   const serial = String(index + 1).padStart(2, "0");
-  return `PANVELKAR_RFID_${safeWing}_${safeUnit}_${safeVehicle}_RC${serial}.${fileExtension(file)}`;
+  return `PANVELKAR_Auto Gate Barrier_${safeWing}_${safeUnit}_${safeVehicle}_RC${serial}.${fileExtension(file)}`;
 }
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
   clearMessage();
 
-  const residentName = document.getElementById("name").value.trim();\n  const vehicleCompanySelect = document.getElementById("vehicleCompany").value;\n  const vehicleCompany = vehicleCompanySelect === "Other – Enter Manually" ? document.getElementById("otherCompany").value.trim() : vehicleCompanySelect;
+  const email = document.getElementById("email").value.trim();
   const mobile = document.getElementById("mobile").value.trim();
   const wing = wingEl.value;
   const unit = unitEl.value;
@@ -507,7 +507,7 @@ form.addEventListener("submit", async (event) => {
   try {
     // Insert registration first. The unique database constraint prevents duplicate vehicle numbers.
     const { error: registrationError } = await db
-      .from("rfid_vehicle_registrations")
+      .from("vehicle_vehicle_registrations")
       .insert({
         id: registrationId,
         email,
@@ -534,7 +534,7 @@ form.addEventListener("submit", async (event) => {
 
       const { error: uploadError } = await db
         .storage
-        .from("rfid-rc-documents")
+        .from("vehicle-rc-documents")
         .upload(path, file, {
           contentType: file.type,
           upsert: false
@@ -543,7 +543,7 @@ form.addEventListener("submit", async (event) => {
       if (uploadError) throw uploadError;
 
       const { error: documentError } = await db
-        .from("rfid_rc_documents")
+        .from("vehicle_rc_documents")
         .insert({
           registration_id: registrationId,
           storage_path: path,
