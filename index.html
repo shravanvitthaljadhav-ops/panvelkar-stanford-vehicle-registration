@@ -294,6 +294,45 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue)!important;box-s
             </select>
           </label>
 
+          <label>
+            <span>Vehicle company</span>
+            <select id="vehicleCompany" required>
+              <option value="">Select vehicle company</option>
+              <option>Maruti Suzuki</option>
+              <option>Hyundai</option>
+              <option>Tata Motors</option>
+              <option>Mahindra</option>
+              <option>Toyota</option>
+              <option>Honda</option>
+              <option>Kia</option>
+              <option>MG Motor</option>
+              <option>Volkswagen</option>
+              <option>Skoda</option>
+              <option>Renault</option>
+              <option>Nissan</option>
+              <option>Jeep</option>
+              <option>Ford</option>
+              <option>Citroen</option>
+              <option>BYD</option>
+              <option>Mercedes-Benz</option>
+              <option>BMW</option>
+              <option>Audi</option>
+              <option>Volvo</option>
+              <option>Jaguar</option>
+              <option>Land Rover</option>
+              <option>Lexus</option>
+              <option>Porsche</option>
+              <option>Isuzu</option>
+              <option>Force Motors</option>
+              <option>Other</option>
+            </select>
+          </label>
+
+          <label id="otherCompanyWrap" class="hidden">
+            <span>Enter vehicle company</span>
+            <input id="otherVehicleCompany" type="text" maxlength="80" placeholder="Enter company name">
+          </label>
+
           <label class="full">
             <span>Vehicle registration number</span>
             <input id="vehicleNumber" type="text" maxlength="13" required
@@ -482,6 +521,15 @@ form.addEventListener("submit", async (event) => {
   const unit = unitEl.value;
   const residentStatus = document.getElementById("residentStatus").value;
   const vehicleType = document.getElementById("vehicleType").value;
+  const vehicleCompanySelect = document.getElementById("vehicleCompany");
+  const otherVehicleCompany = document.getElementById("otherVehicleCompany");
+  const vehicleCompany = vehicleCompanySelect.value === "Other"
+    ? otherVehicleCompany.value.trim()
+    : vehicleCompanySelect.value;
+  if (!vehicleCompany) {
+    showMessage("Please select or enter the vehicle company.", "error");
+    return;
+  }
   const vehicleNumber = normalizeVehicleNumber(
     document.getElementById("vehicleNumber").value.trim()
   );
@@ -520,6 +568,7 @@ form.addEventListener("submit", async (event) => {
         unit_number: unit,
         resident_status: residentStatus,
         vehicle_type: vehicleType,
+        vehicle_company: vehicleCompany,
         vehicle_registration_no: vehicleNumber
       });
 
