@@ -372,38 +372,40 @@ const submitBtn = document.getElementById("submitBtn");
 const vehicleTypeEl = document.getElementById("vehicleType");
 const accessDeviceEl = document.getElementById("accessDevice");
 function syncAccessDevice(){
-  const isFour=vehicleTypeEl.value==="4-Wheeler";
-  const fast=[...accessDeviceEl.options].find(o=>o.value==="Fast Tag");
+  const type=vehicleTypeEl.value;
+  const isFour=type==="4-Wheeler";
+  const isTwoOrThree=type==="2-Wheeler" || type==="3-Wheeler";
+
+  // Android/native select controls may ignore option.hidden/disabled.
+  // Therefore Fast Tag is physically removed from the dropdown for 2/3-wheelers
+  // and restored only for 4-Wheeler.
+  let fast=[...accessDeviceEl.options].find(o=>o.value==="Fast Tag");
   const rfid=[...accessDeviceEl.options].find(o=>o.value==="RFID Code");
 
-  // 2/3-Wheelers: RFID Code is mandatory and automatically selected.
-  // 4-Wheelers: both RFID Code and Fast Tag are available.
-  // Fast Tag must not even appear as a selectable option for 2/3-wheelers.
-  // It is available only for 4-Wheeler.
-  if(fast){
-    fast.disabled=!isFour;
-    fast.hidden=!isFour;
-  }
-  if(rfid){
-    rfid.disabled=false;
-    rfid.hidden=false;
-  }
-
   if(isFour){
+    if(!fast){
+      fast=document.createElement("option");
+      fast.value="Fast Tag";
+      fast.textContent="Fast Tag — ₹76.70 (₹65 + 18% GST) — 4-Wheeler only";
+      accessDeviceEl.appendChild(fast);
+    }
+    if(rfid) rfid.disabled=false;
+    accessDeviceEl.disabled=false;
     if(accessDeviceEl.value!=="RFID Code" && accessDeviceEl.value!=="Fast Tag"){
       accessDeviceEl.value="";
     }
-    accessDeviceEl.disabled=false;
-    accessDeviceEl.setCustomValidity("");
-  }else if(vehicleTypeEl.value==="2-Wheeler" || vehicleTypeEl.value==="3-Wheeler"){
+  }else if(isTwoOrThree){
+    if(fast) fast.remove();
+    if(rfid) rfid.disabled=false;
     accessDeviceEl.value="RFID Code";
     accessDeviceEl.disabled=true;
-    accessDeviceEl.setCustomValidity("");
   }else{
+    if(fast) fast.remove();
     accessDeviceEl.value="";
     accessDeviceEl.disabled=false;
-    accessDeviceEl.setCustomValidity("");
   }
+
+  accessDeviceEl.setCustomValidity("");
 }
 function validateAccessDevice(){
   const type=vehicleTypeEl.value;
@@ -823,4 +825,4 @@ form.addEventListener("submit", async (event) => {
 
 <div style="text-align:center;margin:28px 0 16px;font-size:12px"><a href="admin.html" style="color:#6b7280;text-decoration:none">Admin Login</a></div>\n</body>
 </html>
-<!-- GitHub Pages deployment refresh: 2026-10-09 RFID-UI -->
+<!-- GitHub Pages deployment refresh: 2026-10-09 RFID-UI-v2 -->
