@@ -292,9 +292,9 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue)!important;box-s
             </select>
           </label>
 
-          <label>
+          <label id="vehicleCompanyWrap" class="hidden" style="display:none!important">
             <span>Vehicle company</span>
-            <select id="vehicleCompany" required>
+            <select id="vehicleCompany">
               <option value="">Select vehicle company</option>
               <option>Maruti Suzuki</option>
               <option>Hyundai</option>
@@ -326,7 +326,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue)!important;box-s
             </select>
           </label>
 
-          <label id="otherCompanyWrap" class="hidden">
+          <label id="otherCompanyWrap" class="hidden" style="display:none!important">
             <span>Enter vehicle company</span>
             <input id="otherVehicleCompany" type="text" maxlength="80" placeholder="Enter company name">
           </label>
@@ -404,6 +404,7 @@ const filesEl = document.getElementById("rcFiles");
 const fileInfo = document.getElementById("fileInfo");
 const message = document.getElementById("formMessage");
 const submitBtn = document.getElementById("submitBtn");
+const vehicleCompanyWrap = document.getElementById("vehicleCompanyWrap");
 const vehicleCompanyEl = document.getElementById("vehicleCompany");
 const otherCompanyWrap = document.getElementById("otherCompanyWrap");
 const otherVehicleCompanyEl = document.getElementById("otherVehicleCompany");
@@ -412,16 +413,19 @@ const accessDeviceEl = document.getElementById("accessDevice");
 function syncCompanyField(){
   const isFour=vehicleTypeEl.value==="4-Wheeler";
   const isOther=vehicleCompanyEl.value==="Other";
+  vehicleCompanyWrap.style.display=isFour ? "flex" : "none";
   vehicleCompanyEl.disabled=!isFour;
   vehicleCompanyEl.required=isFour;
   if(!isFour){
     vehicleCompanyEl.value="";
     otherCompanyWrap.classList.add("hidden");
+    otherCompanyWrap.style.display="none";
     otherVehicleCompanyEl.required=false;
     otherVehicleCompanyEl.value="";
     return;
   }
   otherCompanyWrap.classList.toggle("hidden",!isOther);
+  otherCompanyWrap.style.display=isOther ? "flex" : "none";
   otherVehicleCompanyEl.required=isOther;
   if(!isOther) otherVehicleCompanyEl.value="";
 }
