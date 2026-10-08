@@ -348,7 +348,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue)!important;box-s
 
         <div id="formMessage" class="form-message" hidden></div>
 
-        <button id="submitBtn" class="primary-btn submit-btn" type="submit">
+        <button id="submitBtn" class="primary-btn submit-btn" type="submit" disabled style="opacity:.55">
           Submit Registration <span>→</span>
         </button>
 
@@ -393,6 +393,25 @@ const filesEl = document.getElementById("rcFiles");
 const fileInfo = document.getElementById("fileInfo");
 const message = document.getElementById("formMessage");
 const submitBtn = document.getElementById("submitBtn");
+let maintenanceEligibleState = false;
+let maintenanceChecked = false;
+function setMaintenanceState(eligible, amount){
+  maintenanceEligibleState=eligible; maintenanceChecked=true;
+  const el=document.getElementById("maintenanceStatus");
+  if(eligible){ el.textContent=`Maintenance outstanding: ₹${Number(amount||0).toLocaleString("en-IN")} — Vehicle registration is allowed.`; el.style.color="#176b4d"; submitBtn.disabled=false; submitBtn.style.opacity="1"; }
+  else { el.textContent=`Maintenance outstanding: ₹${Number(amount||0).toLocaleString("en-IN")} — Registration restricted.`; el.style.color="#b42318"; submitBtn.disabled=true; submitBtn.style.opacity=".55"; }
+}
+async function checkMaintenanceEligibility(){
+  const wing=wingEl.value, unit=unitEl.value;
+  maintenanceChecked=false; submitBtn.disabled=true; submitBtn.style.opacity=".55";
+  if(!wing||!unit){document.getElementById("maintenanceStatus").textContent="Select your wing and flat to check maintenance eligibility.";return false;}
+  const {data,error}=await db.rpc("rfid_check_maintenance_eligibility",{p_wing:wing,p_unit_number:unit});
+  if(error){document.getElementById("maintenanceStatus").textContent="Unable to verify maintenance status. Please try again.";return false;}
+  const result=Array.isArray(data)?data[0]:data;
+  if(!result){setMaintenanceState(true,0);return true;}
+  if(!result.eligible){setMaintenanceState(false,result.outstanding_amount);return false;}
+  setMaintenanceState(true,result.outstanding_amount);return true;
+}
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const MAX_FILES = 2;
@@ -441,7 +460,8 @@ function buildUnits(wing) {
     });
 }
 
-wingEl.addEventListener("change", () => buildUnits(wingEl.value));
+wingEl.addEventListener("change", async () => { buildUnits(wingEl.value); maintenanceChecked=false; submitBtn.disabled=true; });
+unitEl.addEventListener("change", checkMaintenanceEligibility);
 
 filesEl.addEventListener("change", () => {
   const files = [...filesEl.files];
@@ -505,10 +525,15 @@ function standardRcFileName(wing, unit, vehicleNumber, index, file) {
   const safeUnit = makeSafeFileName(unit.toUpperCase());
   const safeVehicle = makeSafeFileName(vehicleNumber.toUpperCase());
   const serial = String(index + 1).padStart(2, "0");
-  return `PANVELKAR_Auto Gate Barrier_${safeWing}_${safeUnit}_${safeVehicle}_RC${serial}.${fileExtension(file)}`;
+  return `PANVELKAR_RFID_${safeWing}_${safeUnit}_${safeVehicle}_RC${serial}.${fileExtension(file)}`;
 }
 
-form.addEventListener("submit", async (event) => {
+function showMaintenanceRestriction(){
+  const modal=document.createElement("div"); modal.style.cssText="position:fixed;inset:0;background:rgba(15,23,42,.58);display:flex;align-items:center;justify-content:center;padding:20px;z-index:9999";
+  modal.innerHTML='<div style="max-width:430px;width:100%;background:#fff;border-radius:18px;padding:26px;box-shadow:0 20px 60px rgba(0,0,0,.22);font-family:inherit"><div style="font-size:28px;margin-bottom:10px">⚠️</div><h3 style="margin:0 0 10px;color:#102238">Vehicle Registration Restricted</h3><p style="margin:0;color:#64748b;line-height:1.6">Please clear the maintenance outstanding amount to register your vehicle. Vehicle registration is restricted when the maintenance outstanding amount is more than ₹7,000.</p><button style="margin-top:18px;width:100%;background:#102238;color:#fff;border:0;border-radius:10px;padding:12px;font-weight:700" onclick="this.closest('div[style*=fixed]').remove()">OK</button></div>';
+  document.body.appendChild(modal);
+}
+form.addEventListener("submit", async (event) =>
   event.preventDefault();
   clearMessage();
 
