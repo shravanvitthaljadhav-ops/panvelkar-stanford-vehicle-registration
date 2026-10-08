@@ -292,45 +292,6 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue)!important;box-s
             </select>
           </label>
 
-          <label id="vehicleCompanyWrap" class="hidden" style="display:none!important">
-            <span>Vehicle company</span>
-            <select id="vehicleCompany">
-              <option value="">Select vehicle company</option>
-              <option>Maruti Suzuki</option>
-              <option>Hyundai</option>
-              <option>Tata Motors</option>
-              <option>Mahindra</option>
-              <option>Toyota</option>
-              <option>Honda</option>
-              <option>Kia</option>
-              <option>MG Motor</option>
-              <option>Volkswagen</option>
-              <option>Skoda</option>
-              <option>Renault</option>
-              <option>Nissan</option>
-              <option>Jeep</option>
-              <option>Ford</option>
-              <option>Citroen</option>
-              <option>BYD</option>
-              <option>Mercedes-Benz</option>
-              <option>BMW</option>
-              <option>Audi</option>
-              <option>Volvo</option>
-              <option>Jaguar</option>
-              <option>Land Rover</option>
-              <option>Lexus</option>
-              <option>Porsche</option>
-              <option>Isuzu</option>
-              <option>Force Motors</option>
-              <option>Other</option>
-            </select>
-          </label>
-
-          <label id="otherCompanyWrap" class="hidden" style="display:none!important">
-            <span>Enter vehicle company</span>
-            <input id="otherVehicleCompany" type="text" maxlength="80" placeholder="Enter company name">
-          </label>
-          
           <label>
             <span>RFID / QR Scanner</span>
             <select id="accessDevice" required>
@@ -404,39 +365,23 @@ const filesEl = document.getElementById("rcFiles");
 const fileInfo = document.getElementById("fileInfo");
 const message = document.getElementById("formMessage");
 const submitBtn = document.getElementById("submitBtn");
-const vehicleCompanyWrap = document.getElementById("vehicleCompanyWrap");
-const vehicleCompanyEl = document.getElementById("vehicleCompany");
-const otherCompanyWrap = document.getElementById("otherCompanyWrap");
-const otherVehicleCompanyEl = document.getElementById("otherVehicleCompany");
 const vehicleTypeEl = document.getElementById("vehicleType");
 const accessDeviceEl = document.getElementById("accessDevice");
-function syncCompanyField(){
-  const isFour=vehicleTypeEl.value==="4-Wheeler";
-  const isOther=vehicleCompanyEl.value==="Other";
-  vehicleCompanyWrap.style.display=isFour ? "flex" : "none";
-  vehicleCompanyEl.disabled=!isFour;
-  vehicleCompanyEl.required=isFour;
-  if(!isFour){
-    vehicleCompanyEl.value="";
-    otherCompanyWrap.classList.add("hidden");
-    otherCompanyWrap.style.display="none";
-    otherVehicleCompanyEl.required=false;
-    otherVehicleCompanyEl.value="";
-    return;
-  }
-  otherCompanyWrap.classList.toggle("hidden",!isOther);
-  otherCompanyWrap.style.display=isOther ? "flex" : "none";
-  otherVehicleCompanyEl.required=isOther;
-  if(!isOther) otherVehicleCompanyEl.value="";
-}
 function syncAccessDevice(){ const isFour=vehicleTypeEl.value==="4-Wheeler"; const fast=[...accessDeviceEl.options].find(o=>o.value==="Fast Tag"); if(fast){fast.disabled=!isFour; if(!isFour && accessDeviceEl.value==="Fast Tag") accessDeviceEl.value="";} }
 let maintenanceEligibleState = false;
 let maintenanceChecked = false;
+function updateSubmitState(){
+  const allowed = maintenanceChecked && maintenanceEligibleState && form.checkValidity();
+  submitBtn.disabled = !allowed;
+  submitBtn.style.opacity = allowed ? "1" : ".55";
+  if(allowed) submitBtn.removeAttribute("aria-disabled"); else submitBtn.setAttribute("aria-disabled","true");
+}
 function setMaintenanceState(eligible, amount){
   maintenanceEligibleState=eligible; maintenanceChecked=true;
   const el=document.getElementById("maintenanceStatus");
-  if(eligible){ el.textContent=`Maintenance outstanding: ₹${Number(amount||0).toLocaleString("en-IN")} — Vehicle registration is allowed.`; el.style.color="#176b4d"; submitBtn.disabled=false; submitBtn.style.opacity="1"; submitBtn.removeAttribute("aria-disabled"); }
-  else { el.textContent=`Maintenance outstanding: ₹${Number(amount||0).toLocaleString("en-IN")} — Registration restricted.`; el.style.color="#b42318"; submitBtn.disabled=true; submitBtn.style.opacity=".55"; submitBtn.setAttribute("aria-disabled","true"); }
+  if(eligible){ el.textContent=`Maintenance outstanding: ₹${Number(amount||0).toLocaleString("en-IN")} — Vehicle registration is allowed.`; el.style.color="#176b4d"; }
+  else { el.textContent=`Maintenance outstanding: ₹${Number(amount||0).toLocaleString("en-IN")} — Registration restricted.`; el.style.color="#b42318"; }
+  updateSubmitState();
 }
 async function checkMaintenanceEligibility(){
   const wing=wingEl.value, unit=unitEl.value;
@@ -497,17 +442,20 @@ function buildUnits(wing) {
     });
 }
 
-vehicleCompanyEl.addEventListener("change", syncCompanyField);
-vehicleTypeEl.addEventListener("change", () => { syncAccessDevice(); syncCompanyField(); });
-syncCompanyField(); syncAccessDevice();
-wingEl.addEventListener("change", async () => { buildUnits(wingEl.value); maintenanceChecked=false; submitBtn.disabled=true; });
+vehicleTypeEl.addEventListener("change", () => { syncAccessDevice(); updateSubmitState(); });
+syncAccessDevice();
+updateSubmitState();
+wingEl.addEventListener("change", async () => { buildUnits(wingEl.value); maintenanceChecked=false; maintenanceEligibleState=false; updateSubmitState(); });
 unitEl.addEventListener("change", checkMaintenanceEligibility);
+form.addEventListener("input", updateSubmitState);
+form.addEventListener("change", updateSubmitState);
 
 filesEl.addEventListener("change", () => {
   const files = [...filesEl.files];
 
   if (!files.length) {
     fileInfo.textContent = "No files selected";
+    updateSubmitState();
     return;
   }
 
@@ -583,16 +531,7 @@ form.addEventListener("submit", async (event) =>
   const unit = unitEl.value;
   const residentStatus = document.getElementById("residentStatus").value;
   const vehicleType = document.getElementById("vehicleType").value;
-  const vehicleCompanySelect = document.getElementById("vehicleCompany");
-  const otherVehicleCompany = document.getElementById("otherVehicleCompany");
-  const vehicleCompany = vehicleCompanySelect.value === "Other"
-    ? otherVehicleCompany.value.trim()
-    : vehicleCompanySelect.value;
-  if (!vehicleCompany) {
-    showMessage("Please select or enter the vehicle company.", "error");
-    return;
-  }
-  const accessDevice = accessDeviceEl.value;
+    const accessDevice = accessDeviceEl.value;
   if (!accessDevice) { showMessage("Please select RFID Code or Fast Tag.", "error"); return; }
   if (accessDevice === "Fast Tag" && vehicleType !== "4-Wheeler") { showMessage("Fast Tag is available only for 4-Wheeler vehicles.", "error"); return; }
   const vehicleNumber = normalizeVehicleNumber(
@@ -633,7 +572,7 @@ form.addEventListener("submit", async (event) =>
         unit_number: unit,
         resident_status: residentStatus,
         vehicle_type: vehicleType,
-        vehicle_company: vehicleCompany,
+        vehicle_company: null,
         access_device: accessDevice,
         vehicle_registration_no: vehicleNumber
       });
