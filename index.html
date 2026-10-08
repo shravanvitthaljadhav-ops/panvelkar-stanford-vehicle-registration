@@ -375,10 +375,14 @@ function syncAccessDevice(){
   const isFour=vehicleTypeEl.value==="4-Wheeler";
   const fast=[...accessDeviceEl.options].find(o=>o.value==="Fast Tag");
   const rfid=[...accessDeviceEl.options].find(o=>o.value==="RFID Code");
+
+  // Both options are selectable only for 4-Wheelers.
+  // For 2/3-Wheelers, RFID Code is the only available/default option.
   if(fast) fast.disabled=!isFour;
+  if(rfid) rfid.disabled=false;
+
   if(!isFour){
-    if(accessDeviceEl.value==="Fast Tag" || !accessDeviceEl.value) accessDeviceEl.value="RFID Code";
-    if(rfid) rfid.disabled=false;
+    accessDeviceEl.value="RFID Code";
   }
 }
 let maintenanceEligibleState = false;
