@@ -61,7 +61,8 @@ button{border:0;border-radius:9px;padding:10px 14px;cursor:pointer;font-weight:6
 
   <div class="card">
     <h2 style="margin-top:0">WhatsApp Message Templates</h2>
-    <div class="notice">Use variables: <b>{{name}}</b>, <b>{{flat}}</b>, <b>{{vehicle_number}}</b>, <b>{{vehicle_company}}</b>, <b>{{vehicle_type}}</b>, <b>{{camp_details}}</b>.</div>
+    <div class="notice">Use variables: <b>{{name}}</b>, <b>{{flat}}</b>, <b>{{vehicle_number}}</b>, <b>{{vehicle_company}}</b>, <b>{{vehicle_type}}</b>, <b>{{camp_details}}</b>. The selected template is used when you click <b>Send WhatsApp</b>.</div>
+    <div style="max-width:520px;margin-bottom:12px"><label>WhatsApp template for Send WhatsApp</label><select id="sendTemplate"></select></div>
     <div class="row">
       <div>
         <label>Template name</label><input id="templateName" placeholder="e.g. Registration Approved">
@@ -177,8 +178,9 @@ function applyVars(t,r){
   return t.replace(/\{\{(\w+)\}\}/g,(_,k)=>vars[k]??'');
 }
 function getTemplateForSend(){
-  const active=templates.filter(t=>t.active);
-  return active[0]||DEFAULT_TEMPLATE;
+  const selected=document.getElementById('sendTemplate')?.value;
+  if(selected==='__default__') return DEFAULT_TEMPLATE;
+  return templates.find(t=>t.id===selected)||DEFAULT_TEMPLATE;
 }
 function openWhatsApp(id){
   const r=registrations.find(x=>x.id===id);if(!r)return;
@@ -195,6 +197,12 @@ async function loadTemplates(){
 }
 function renderTemplates(){
   const all=[DEFAULT_TEMPLATE,...templates];
+  const sel=document.getElementById('sendTemplate');
+  if(sel){
+    const previous=sel.value;
+    sel.innerHTML=all.map(t=>'<option value="'+esc(t.id)+'">'+esc(t.name)+(t.id==='__default__'?' (built-in)':'')+'</option>').join('');
+    if(all.some(t=>t.id===previous)) sel.value=previous;
+  }
   document.getElementById('templateList').innerHTML=all.map(t=>`<div class="template-item">
     <strong>${esc(t.name)} ${t.id==='__default__'?'<span class="muted">(built-in)</span>':''}</strong>
     <div class="template-preview">${esc(t.message)}</div>
