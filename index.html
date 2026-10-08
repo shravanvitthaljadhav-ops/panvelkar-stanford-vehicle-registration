@@ -378,19 +378,30 @@ function syncAccessDevice(){
 
   // 2/3-Wheelers: RFID Code is mandatory and automatically selected.
   // 4-Wheelers: both RFID Code and Fast Tag are available.
-  if(fast) fast.disabled=!isFour;
-  if(rfid) rfid.disabled=false;
+  // Fast Tag must not even appear as a selectable option for 2/3-wheelers.
+  // It is available only for 4-Wheeler.
+  if(fast){
+    fast.disabled=!isFour;
+    fast.hidden=!isFour;
+  }
+  if(rfid){
+    rfid.disabled=false;
+    rfid.hidden=false;
+  }
 
   if(isFour){
     if(accessDeviceEl.value!=="RFID Code" && accessDeviceEl.value!=="Fast Tag"){
       accessDeviceEl.value="";
     }
+    accessDeviceEl.disabled=false;
     accessDeviceEl.setCustomValidity("");
   }else if(vehicleTypeEl.value==="2-Wheeler" || vehicleTypeEl.value==="3-Wheeler"){
     accessDeviceEl.value="RFID Code";
+    accessDeviceEl.disabled=true;
     accessDeviceEl.setCustomValidity("");
   }else{
     accessDeviceEl.value="";
+    accessDeviceEl.disabled=false;
     accessDeviceEl.setCustomValidity("");
   }
 }
@@ -812,4 +823,4 @@ form.addEventListener("submit", async (event) => {
 
 <div style="text-align:center;margin:28px 0 16px;font-size:12px"><a href="admin.html" style="color:#6b7280;text-decoration:none">Admin Login</a></div>\n</body>
 </html>
-<!-- GitHub Pages deployment refresh: 2026-10-08 -->
+<!-- GitHub Pages deployment refresh: 2026-10-09 RFID-UI -->
