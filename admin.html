@@ -320,13 +320,14 @@ async function uploadMaintenance(){
     const wingIdx=findColumn(headers,['Wing','Premise / Wing','Premise']);
     const flatIdx=findColumn(headers,['Flat No','Flat No.','Unit Number','Flat Number','Unit']);
     const amountIdx=findColumn(headers,['Maintenance Outstanding','Outstanding Amount','Outstanding','Maintenance Due','Due Amount']);
-    if(flatIdx<0 || amountIdx<0) throw new Error('Required columns not found. Please use Wing, Flat No. and Maintenance Outstanding.');
+    const flatIdxFinal=flatIdx>=0?flatIdx:findColumn(headers,['FlatUnit']);
+    if(flatIdxFinal<0 || amountIdx<0) throw new Error('Required columns not found. Please use Wing, Flat No. and Maintenance Outstanding.');
     const {data:{user}}=await db.auth.getUser();
     let updated=0, invalid=0, bad=0, duplicate=0;
     const seen=new Set();
     for(const row of rows.slice(1)){
       let wing=wingIdx>=0?String(row[wingIdx]??'').trim().toUpperCase():'';
-      let flat=String(row[flatIdx]??'').trim().toUpperCase();
+      let flat=String(row[flatIdxFinal]??'').trim().toUpperCase();
       let amountRaw=String(row[amountIdx]??'').replace(/[₹,\s]/g,'');
       if(!flat) continue;
       if(flat.includes('-')){const parts=flat.split('-'); if(parts.length>1){wing=parts[0]||wing; flat=parts.slice(1).join('-');}}
