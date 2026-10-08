@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Stanford Vehicle Registration — Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--bg:#f4f6f8;--card:#fff;--text:#17202a;--muted:#68737d;--line:#e3e7eb;--accent:#0b6bcb;--ok:#16803c;--warn:#a15c00;--danger:#b42318}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;color:var(--text)}
+header{background:#102a43;color:#fff;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;gap:16px}
+header h1{font-size:19px;margin:0}header small{opacity:.8}
+main{max-width:1450px;margin:22px auto;padding:0 16px}.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:18px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+.login{max-width:430px;margin:70px auto}.login h2{margin-top:0}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.stat{padding:16px;border:1px solid var(--line);border-radius:12px;background:#fff}.stat b{display:block;font-size:28px;margin-top:5px}.muted{color:var(--muted);font-size:13px}
+input,select,textarea,button{font:inherit}input,select,textarea{width:100%;border:1px solid #ccd3da;border-radius:9px;padding:10px 11px;background:#fff}textarea{min-height:150px;resize:vertical}
+button{border:0;border-radius:9px;padding:10px 14px;cursor:pointer;font-weight:650}.primary{background:var(--accent);color:#fff}.secondary{background:#e9eef3;color:#17202a}.danger{background:#b42318;color:#fff}.success{background:#16803c;color:#fff}.whatsapp{background:#16803c;color:#fff}
+.actions{display:flex;flex-wrap:wrap;gap:8px}.toolbar{display:grid;grid-template-columns:1fr 180px 180px auto;gap:10px;margin-bottom:14px}
+.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:10px}table{width:100%;border-collapse:collapse;min-width:1100px}th,td{padding:10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;font-size:13px}th{background:#f8fafb;position:sticky;top:0;z-index:1}.badge{display:inline-block;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:700}.pending{background:#fff0d6;color:var(--warn)}.approved{background:#dcf7e5;color:var(--ok)}.rejected{background:#fde3e1;color:var(--danger)}.queued{background:#e6f0ff;color:#135da8}
+.hidden{display:none!important}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.form-actions{display:flex;gap:8px;margin-top:10px}.template-item{border:1px solid var(--line);border-radius:10px;padding:12px;margin:8px 0}.template-item strong{display:block;margin-bottom:5px}.template-preview{white-space:pre-wrap;background:#f8fafb;border-radius:8px;padding:10px;font-size:13px}
+.notice{padding:10px 12px;border-radius:9px;background:#eef6ff;color:#135da8;margin-bottom:12px;font-size:13px}
+@media(max-width:900px){.grid{grid-template-columns:1fr 1fr}.toolbar,.row{grid-template-columns:1fr}.stat b{font-size:24px}}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>Panvelkar Estate Stanford — Vehicle Registration Admin</h1><small id="userLabel">Admin</small></div>
+  <button id="logoutBtn" class="secondary hidden" onclick="logout()">Logout</button>
+</header>
+
+<main>
+<section id="loginView" class="card login">
+  <h2>Admin Login</h2>
+  <p class="muted">Only authorised society administrators can access registrations.</p>
+  <label>Email</label><input id="loginEmail" type="email" autocomplete="username">
+  <label style="display:block;margin-top:10px">Password</label><input id="loginPassword" type="password" autocomplete="current-password">
+  <div class="form-actions"><button class="primary" onclick="login()">Login</button></div>
+  <p id="loginMsg" class="muted"></p>
+</section>
+
+<section id="appView" class="hidden">
+  <div class="grid">
+    <div class="stat"><span class="muted">Total</span><b id="totalCount">0</b></div>
+    <div class="stat"><span class="muted">Pending</span><b id="pendingCount">0</b></div>
+    <div class="stat"><span class="muted">Approved</span><b id="approvedCount">0</b></div>
+    <div class="stat"><span class="muted">RFID Activated</span><b id="rfidCount">0</b></div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Vehicle Registrations</h2>
+    <div class="toolbar">
+      <input id="search" placeholder="Search flat, name, mobile or vehicle number" oninput="renderRegistrations()">
+      <select id="statusFilter" onchange="renderRegistrations()"><option value="">All statuses</option><option value="pending_verification">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="correction_required">Correction Required</option></select>
+      <select id="rfidFilter" onchange="renderRegistrations()"><option value="">All RFID statuses</option><option value="not_activated">Not Activated</option><option value="queued">Queued</option><option value="activated">Activated</option><option value="blocked">Blocked</option></select>
+      <button class="secondary" onclick="loadRegistrations()">Refresh</button>
+    </div>
+    <div class="table-wrap"><table><thead><tr>
+      <th>Flat</th><th>Resident</th><th>Mobile</th><th>Vehicle</th><th>Type</th><th>RC</th><th>Status</th><th>RFID</th><th>Actions</th>
+    </tr></thead><tbody id="registrationBody"></tbody></table></div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">WhatsApp Message Templates</h2>
+    <div class="notice">Use variables: <b>{{name}}</b>, <b>{{flat}}</b>, <b>{{vehicle_number}}</b>, <b>{{vehicle_company}}</b>, <b>{{vehicle_type}}</b>, <b>{{camp_details}}</b>.</div>
+    <div class="row">
+      <div>
+        <label>Template name</label><input id="templateName" placeholder="e.g. Registration Approved">
+      </div>
+      <div>
+        <label>Message</label><textarea id="templateMessage" placeholder="Hello {{name}}, your vehicle registration for {{flat}} has been approved..."></textarea>
+      </div>
+    </div>
+    <div class="form-actions"><button class="primary" onclick="saveTemplate()">Save Template</button><button class="secondary" onclick="clearTemplateForm()">Clear</button></div>
+    <div id="templateList"></div>
+  </div>
+</section>
+</main>
+
+<script>
+const SUPABASE_URL='https://zawatmovyrjcpgxkqcqq.supabase.co';
+const SUPABASE_KEY='sb_publishable_x9u_XeQlrOil8VRZ6Kcbjg_48JRq51y';
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let registrations=[];
+let templates=[];
+let editingTemplateId=null;
+const DEFAULT_TEMPLATE={
+  id:'__default__',
+  name:'Registration Approved',
+  message:'Hello {{name}},\n\nYour vehicle registration for {{flat}} has been approved.\n\nVehicle: {{vehicle_number}}\nVehicle Type: {{vehicle_type}}\n\nRFID / Barcode distribution camp details:\n{{camp_details}}\n\nYou can visit the camp to get the barcode fixed to your car by our authorised team.\n\nThank you,\nPanvelkar Estate Stanford CHS Ltd.'
+};
+
+function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+function statusBadge(v){const cls=v==='approved'?'approved':v==='rejected'?'rejected':v==='pending_verification'?'pending':'queued';return '<span class="badge '+cls+'">'+esc(v||'-')+'</span>';}
+async function login(){
+  const email=document.getElementById('loginEmail').value.trim(),password=document.getElementById('loginPassword').value;
+  const msg=document.getElementById('loginMsg'); msg.textContent='Signing in...';
+  const {error}=await db.auth.signInWithPassword({email,password});
+  if(error){msg.textContent=error.message;return;}
+  await boot();
+}
+async function boot(){
+  const {data:{user}}=await db.auth.getUser();
+  if(!user){showLogin();return;}
+  const {data:profile,error}=await db.from('profiles').select('full_name,role,active').eq('id',user.id).single();
+  if(error || !profile || !profile.active || !['admin','super_admin'].includes(profile.role)){
+    await db.auth.signOut(); showLogin(); document.getElementById('loginMsg').textContent='This account is not authorised as an Admin.'; return;
+  }
+  document.getElementById('userLabel').textContent=(profile.full_name||user.email)+' • '+profile.role;
+  document.getElementById('loginView').classList.add('hidden');document.getElementById('appView').classList.remove('hidden');document.getElementById('logoutBtn').classList.remove('hidden');
+  await Promise.all([loadRegistrations(),loadTemplates()]);
+}
+function showLogin(){document.getElementById('loginView').classList.remove('hidden');document.getElementById('appView').classList.add('hidden');document.getElementById('logoutBtn').classList.add('hidden');}
+async function logout(){await db.auth.signOut();showLogin();}
+async function loadRegistrations(){
+  const {data,error}=await db.from('rfid_vehicle_registrations').select('*').order('created_at',{ascending:false});
+  if(error){alert(error.message);return;}
+  registrations=data||[];
+  updateStats();renderRegistrations();
+}
+function updateStats(){
+  document.getElementById('totalCount').textContent=registrations.length;
+  document.getElementById('pendingCount').textContent=registrations.filter(x=>x.status==='pending_verification').length;
+  document.getElementById('approvedCount').textContent=registrations.filter(x=>x.status==='approved').length;
+  document.getElementById('rfidCount').textContent=registrations.filter(x=>x.rfid_status==='activated').length;
+}
+function renderRegistrations(){
+  const q=document.getElementById('search').value.trim().toLowerCase(),sf=document.getElementById('statusFilter').value,rf=document.getElementById('rfidFilter').value;
+  const rows=registrations.filter(r=>{
+    const hay=[r.wing+'-'+r.unit_number,r.resident_name,r.mobile,r.vehicle_registration_no,r.vehicle_company].join(' ').toLowerCase();
+    return (!q||hay.includes(q))&&(!sf||r.status===sf)&&(!rf||r.rfid_status===rf);
+  });
+  document.getElementById('registrationBody').innerHTML=rows.map(r=>`<tr>
+    <td><b>${esc(r.wing+'-'+r.unit_number)}</b></td>
+    <td>${esc(r.resident_name)}<br><span class="muted">${esc(r.resident_status)}</span></td>
+    <td>${esc(r.mobile)}</td>
+    <td><b>${esc(r.vehicle_registration_no)}</b><br><span class="muted">${esc(r.vehicle_company||'')}</span></td>
+    <td>${esc(r.vehicle_type)}</td>
+    <td><button class="secondary" onclick="viewRc('${r.id}')">View RC</button></td>
+    <td>${statusBadge(r.status)}</td>
+    <td>${statusBadge(r.rfid_status)}</td>
+    <td><div class="actions">
+      <button class="success" onclick="approveRegistration('${r.id}')">Approve</button>
+      <button class="danger" onclick="rejectRegistration('${r.id}')">Reject</button>
+      <button class="whatsapp" onclick="openWhatsApp('${r.id}')">Send WhatsApp</button>
+    </div></td>
+  </tr>`).join('')||'<tr><td colspan="9" class="muted">No registrations found.</td></tr>';
+}
+async function approveRegistration(id){
+  const r=registrations.find(x=>x.id===id);if(!r)return;
+  const {data:{user}}=await db.auth.getUser();
+  const {error}=await db.from('rfid_vehicle_registrations').update({status:'approved',verified_by:user.id,verified_at:new Date().toISOString(),verification_remarks:null}).eq('id',id);
+  if(error){alert(error.message);return;} await loadRegistrations();
+}
+async function rejectRegistration(id){
+  const r=registrations.find(x=>x.id===id);if(!r)return;
+  const reason=prompt('Enter rejection / correction reason:','Please upload a clear RC document or correct the submitted details.');
+  if(reason===null)return;
+  const {data:{user}}=await db.auth.getUser();
+  const {error}=await db.from('rfid_vehicle_registrations').update({status:'rejected',verified_by:user.id,verified_at:new Date().toISOString(),verification_remarks:reason}).eq('id',id);
+  if(error){alert(error.message);return;} await loadRegistrations();
+}
+async function viewRc(id){
+  const {data:docs,error}=await db.from('rfid_rc_documents').select('*').eq('registration_id',id).order('created_at');
+  if(error){alert(error.message);return;}
+  if(!docs?.length){alert('No RC document found.');return;}
+  let html='RC document(s):\n\n';
+  for(const d of docs){
+    const {data:s,error:e}=await db.storage.from('rfid-rc-documents').createSignedUrl(d.storage_path,600);
+    if(e){html+='Unable to create link for '+d.original_file_name+'\\n';continue;}
+    html+=d.original_file_name+'\\n'+s.signedUrl+'\\n\\n';
+  }
+  const w=window.open(); if(w){w.document.write('<pre style="white-space:pre-wrap;font-family:Arial;padding:20px">'+esc(html).replace(/\\n/g,'<br>')+'</pre>');}
+}
+function applyVars(t,r){
+  const flat=r.wing+'-'+r.unit_number;
+  const vars={name:r.resident_name||'',flat,vehicle_number:r.vehicle_registration_no||'',vehicle_company:r.vehicle_company||'',vehicle_type:r.vehicle_type||'',camp_details:'[Enter RFID distribution camp date, time and venue]'};
+  return t.replace(/\{\{(\w+)\}\}/g,(_,k)=>vars[k]??'');
+}
+function getTemplateForSend(){
+  const active=templates.filter(t=>t.active);
+  return active[0]||DEFAULT_TEMPLATE;
+}
+function openWhatsApp(id){
+  const r=registrations.find(x=>x.id===id);if(!r)return;
+  const t=getTemplateForSend();
+  const msg=applyVars(t.message,r);
+  const phone='91'+String(r.mobile||'').replace(/\D/g,'');
+  if(phone.length!==12){alert('Invalid Indian mobile number.');return;}
+  window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(msg),'_blank');
+}
+async function loadTemplates(){
+  const {data,error}=await db.from('rfid_whatsapp_templates').select('*').order('created_at',{ascending:true});
+  if(error){templates=[];renderTemplates();return;}
+  templates=data||[];renderTemplates();
+}
+function renderTemplates(){
+  const all=[DEFAULT_TEMPLATE,...templates];
+  document.getElementById('templateList').innerHTML=all.map(t=>`<div class="template-item">
+    <strong>${esc(t.name)} ${t.id==='__default__'?'<span class="muted">(built-in)</span>':''}</strong>
+    <div class="template-preview">${esc(t.message)}</div>
+    ${t.id!=='__default__'?'<div class="form-actions"><button class="secondary" onclick="editTemplate(\''+t.id+'\')">Edit</button><button class="danger" onclick="deleteTemplate(\''+t.id+'\')">Delete</button></div>':''}
+  </div>`).join('');
+}
+function editTemplate(id){const t=templates.find(x=>x.id===id);if(!t)return;editingTemplateId=id;document.getElementById('templateName').value=t.name;document.getElementById('templateMessage').value=t.message;}
+function clearTemplateForm(){editingTemplateId=null;document.getElementById('templateName').value='';document.getElementById('templateMessage').value='';}
+async function saveTemplate(){
+  const name=document.getElementById('templateName').value.trim(),message=document.getElementById('templateMessage').value.trim();
+  if(!name||!message){alert('Enter template name and message.');return;}
+  let result;
+  if(editingTemplateId) result=await db.from('rfid_whatsapp_templates').update({name,message,updated_at:new Date().toISOString()}).eq('id',editingTemplateId);
+  else {const {data:{user}}=await db.auth.getUser();result=await db.from('rfid_whatsapp_templates').insert({name,message,created_by:user.id});}
+  if(result.error){alert(result.error.message);return;} clearTemplateForm();await loadTemplates();
+}
+async function deleteTemplate(id){if(!confirm('Delete this template?'))return;const {error}=await db.from('rfid_whatsapp_templates').delete().eq('id',id);if(error)alert(error.message);else await loadTemplates();}
+db.auth.onAuthStateChange((_event)=>{setTimeout(()=>boot(),0);});
+boot();
+</script>
+</body>
+</html>
