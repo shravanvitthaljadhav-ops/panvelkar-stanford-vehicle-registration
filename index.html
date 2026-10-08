@@ -244,7 +244,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue)!important;box-s
         <div class="form-grid">
           <label>
             <span>Name</span>
-            <input id="name" type="text" required placeholder="name@example.com">
+            <input id="name" type="text" required placeholder="Enter resident name">
           </label>
 
           <label>
@@ -380,7 +380,7 @@ function buildUnits(wing) {
 
   if (!wing) return;
 
-  db.from("vehicle_unit_master")
+  db.from("rfid_unit_master")
     .select("unit_number")
     .eq("wing", wing)
     .eq("active", true)
@@ -401,7 +401,7 @@ function buildUnits(wing) {
     });
 }
 
-wingEl.addEventListener("change", () => buildUnits(wingEl.value));
+wingEl.addEventListener("change", () => buildUnits(wingEl.value));\n\nconst companyEl = document.getElementById("vehicleCompany");\nconst otherCompanyWrap = document.getElementById("otherCompanyWrap");\nconst otherCompanyEl = document.getElementById("otherCompany");\ncompanyEl.addEventListener("change", () => { const other = companyEl.value === "Other – Enter Manually"; otherCompanyWrap.hidden = !other; otherCompanyEl.required = other; if (!other) otherCompanyEl.value = ""; });
 
 filesEl.addEventListener("change", () => {
   const files = [...filesEl.files];
@@ -465,14 +465,14 @@ function standardRcFileName(wing, unit, vehicleNumber, index, file) {
   const safeUnit = makeSafeFileName(unit.toUpperCase());
   const safeVehicle = makeSafeFileName(vehicleNumber.toUpperCase());
   const serial = String(index + 1).padStart(2, "0");
-  return `PANVELKAR_Auto Gate Barrier_${safeWing}_${safeUnit}_${safeVehicle}_RC${serial}.${fileExtension(file)}`;
+  return `PANVELKAR_RFID_${safeWing}_${safeUnit}_${safeVehicle}_RC${serial}.${fileExtension(file)}`;
 }
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
   clearMessage();
 
-  const email = document.getElementById("email").value.trim();
+  const residentName = document.getElementById("name").value.trim();\n  const vehicleCompanySelect = document.getElementById("vehicleCompany").value;\n  const vehicleCompany = vehicleCompanySelect === "Other – Enter Manually" ? document.getElementById("otherCompany").value.trim() : vehicleCompanySelect;
   const mobile = document.getElementById("mobile").value.trim();
   const wing = wingEl.value;
   const unit = unitEl.value;
@@ -507,7 +507,7 @@ form.addEventListener("submit", async (event) => {
   try {
     // Insert registration first. The unique database constraint prevents duplicate vehicle numbers.
     const { error: registrationError } = await db
-      .from("vehicle_vehicle_registrations")
+      .from("rfid_vehicle_registrations")
       .insert({
         id: registrationId,
         email,
@@ -534,7 +534,7 @@ form.addEventListener("submit", async (event) => {
 
       const { error: uploadError } = await db
         .storage
-        .from("vehicle-rc-documents")
+        .from("rfid-rc-documents")
         .upload(path, file, {
           contentType: file.type,
           upsert: false
@@ -543,7 +543,7 @@ form.addEventListener("submit", async (event) => {
       if (uploadError) throw uploadError;
 
       const { error: documentError } = await db
-        .from("vehicle_rc_documents")
+        .from("rfid_rc_documents")
         .insert({
           registration_id: registrationId,
           storage_path: path,
