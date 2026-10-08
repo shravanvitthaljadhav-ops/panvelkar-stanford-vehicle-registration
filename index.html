@@ -376,19 +376,46 @@ function syncAccessDevice(){
   const fast=[...accessDeviceEl.options].find(o=>o.value==="Fast Tag");
   const rfid=[...accessDeviceEl.options].find(o=>o.value==="RFID Code");
 
-  // Both options are selectable only for 4-Wheelers.
-  // For 2/3-Wheelers, RFID Code is the only available/default option.
+  // 2/3-Wheelers: RFID Code is mandatory and automatically selected.
+  // 4-Wheelers: both RFID Code and Fast Tag are available.
   if(fast) fast.disabled=!isFour;
   if(rfid) rfid.disabled=false;
 
-  if(!isFour){
+  if(isFour){
+    if(accessDeviceEl.value!=="RFID Code" && accessDeviceEl.value!=="Fast Tag"){
+      accessDeviceEl.value="";
+    }
+    accessDeviceEl.setCustomValidity("");
+  }else if(vehicleTypeEl.value==="2-Wheeler" || vehicleTypeEl.value==="3-Wheeler"){
     accessDeviceEl.value="RFID Code";
+    accessDeviceEl.setCustomValidity("");
+  }else{
+    accessDeviceEl.value="";
+    accessDeviceEl.setCustomValidity("");
   }
+}
+function validateAccessDevice(){
+  const type=vehicleTypeEl.value;
+  const device=accessDeviceEl.value;
+  if(!type){
+    accessDeviceEl.setCustomValidity("");
+    return false;
+  }
+  if((type==="2-Wheeler" || type==="3-Wheeler") && device!=="RFID Code"){
+    accessDeviceEl.setCustomValidity("RFID Code is mandatory for 2-Wheeler and 3-Wheeler.");
+    return false;
+  }
+  if(type==="4-Wheeler" && device!=="RFID Code" && device!=="Fast Tag"){
+    accessDeviceEl.setCustomValidity("Please select RFID Code or Fast Tag.");
+    return false;
+  }
+  accessDeviceEl.setCustomValidity("");
+  return true;
 }
 let maintenanceEligibleState = false;
 let maintenanceChecked = false;
 function updateSubmitState(){
-  const allowed = maintenanceChecked && maintenanceEligibleState && form.checkValidity();
+  const allowed = maintenanceChecked && maintenanceEligibleState && validateAccessDevice() && form.checkValidity();
   submitBtn.disabled = !allowed;
   submitBtn.style.opacity = allowed ? "1" : ".55";
   if(allowed) submitBtn.removeAttribute("aria-disabled"); else submitBtn.setAttribute("aria-disabled","true");
@@ -459,7 +486,8 @@ function buildUnits(wing) {
     });
 }
 
-vehicleTypeEl.addEventListener("change", () => { syncAccessDevice(); updateSubmitState(); });
+vehicleTypeEl.addEventListener("change", () => { syncAccessDevice(); validateAccessDevice(); updateSubmitState(); });
+accessDeviceEl.addEventListener("change", () => { validateAccessDevice(); updateSubmitState(); });
 syncAccessDevice();
 updateSubmitState();
 wingEl.addEventListener("change", async () => { buildUnits(wingEl.value); maintenanceChecked=false; maintenanceEligibleState=false; updateSubmitState(); });
@@ -549,6 +577,7 @@ form.addEventListener("submit", async (event) => {
   const residentStatus = document.getElementById("residentStatus").value;
   const vehicleType = document.getElementById("vehicleType").value;
     const accessDevice = accessDeviceEl.value;
+  if (!validateAccessDevice()) { showMessage(accessDeviceEl.validationMessage || "Please select the correct RFID / QR Scanner option.", "error"); return; }
   if (!accessDevice) { showMessage("Please select RFID Code or Fast Tag.", "error"); return; }
   if (accessDevice === "Fast Tag" && vehicleType !== "4-Wheeler") { showMessage("Fast Tag is available only for 4-Wheeler vehicles.", "error"); return; }
   const vehicleNumber = normalizeVehicleNumber(
