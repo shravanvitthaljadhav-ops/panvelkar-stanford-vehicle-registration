@@ -137,7 +137,7 @@ async function loadRegistrations(){
   const {data,error}=await db.rpc('rfid_admin_list_registrations');
   if(error){alert('Unable to load registrations: '+error.message);return;}
   if(!Array.isArray(data)){alert('Unable to load registrations: invalid response from server.');return;}
-  data.sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0);
+  data.sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
   registrations=data||[];
   updateStats();renderRegistrations();
   document.getElementById('recordCount').textContent=registrations.length+' records';
