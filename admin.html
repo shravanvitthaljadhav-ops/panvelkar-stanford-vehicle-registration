@@ -47,7 +47,7 @@ button{border:0;border-radius:9px;padding:10px 14px;cursor:pointer;font-weight:6
 </section>
 
 <section id="appView" class="hidden">
-  <nav class="admin-nav"><a href="#dashboard">Dashboard</a><a href="#registrations">Registrations</a><a href="#camp">Camp Settings</a><a href="#whatsapp">WhatsApp Templates</a><a href="#registrations" onclick="focusPending()">Pending</a></nav>
+  <nav class="admin-nav"><a href="#dashboard">Dashboard</a><a href="#registrations">Registrations</a><a href="#maintenance">Maintenance</a><a href="#camp">Camp Settings</a><a href="#whatsapp">WhatsApp Templates</a><a href="#registrations" onclick="focusPending()">Pending</a></nav>
   <div id="dashboard" class="grid">
     <div class="stat"><span class="muted">Total</span><b id="totalCount">0</b></div>
     <div class="stat"><span class="muted">Pending</span><b id="pendingCount">0</b></div>
@@ -66,6 +66,21 @@ button{border:0;border-radius:9px;padding:10px 14px;cursor:pointer;font-weight:6
     <div class="export-bar"><button class="primary" onclick="exportXlsx()">Export Excel</button><button class="secondary" onclick="exportCsv()">Export Filtered CSV</button><button class="secondary" onclick="printReport()">Print Report</button></div><div id="mobileRegistrations"></div><div class="table-wrap"><table><thead><tr>
       <th>Flat</th><th>Resident</th><th>Mobile</th><th>Vehicle</th><th>Type</th><th>RC</th><th>Status</th><th>RFID</th><th>Actions</th>
     </tr></thead><tbody id="registrationBody"></tbody></table></div>
+  </div>
+
+
+  <div id="maintenance" class="card">
+    <div class="section-title"><div><div class="kicker">MAINTENANCE CONTROL</div><h2 style="margin:4px 0 6px">Maintenance Outstanding</h2></div><span class="badge" style="background:#fff0d6;color:#8a5300">Registration limit: ₹7,000</span></div>
+    <p class="muted">Upload the latest Excel file containing Wing, Flat No. and Maintenance Outstanding. Amounts above ₹7,000 will restrict vehicle registration.</p>
+    <div class="notice"><b>Recommended Excel columns:</b> Wing | Flat No. | Maintenance Outstanding</div>
+    <div class="form-actions" style="align-items:center;flex-wrap:wrap">
+      <input id="maintenanceFile" type="file" accept=".xls,.xlsx,.csv" style="max-width:420px">
+      <button class="primary" onclick="uploadMaintenance()">Upload Maintenance Excel</button>
+      <button class="secondary" onclick="downloadMaintenance()">Download Current Data</button>
+    </div>
+    <p id="maintenanceMsg" class="muted"></p>
+    <div id="maintenanceSummary" class="grid" style="grid-template-columns:repeat(3,1fr);margin-top:12px"></div>
+    <div style="margin-top:14px;overflow:auto"><table style="min-width:700px"><thead><tr><th>Flat</th><th>Outstanding</th><th>Registration</th><th>Updated</th></tr></thead><tbody id="maintenanceBody"></tbody></table></div>
   </div>
 
   <div id="camp" class="card camp-card">
@@ -109,6 +124,7 @@ let registrations=[];
 let templates=[];
 let campSettings=null;
 let editingTemplateId=null;
+let maintenanceRows=[];
 const DEFAULT_TEMPLATE={
   id:'__default__',
   name:'Registration Approved',
@@ -133,7 +149,7 @@ async function boot(){
   }
   document.getElementById('userLabel').textContent=(profile.full_name||user.email)+' • '+profile.role;
   document.getElementById('loginView').classList.add('hidden');document.getElementById('appView').classList.remove('hidden');document.getElementById('logoutBtn').classList.remove('hidden');
-  await Promise.all([loadRegistrations(),loadTemplates(),loadCamp()]);
+  await Promise.all([loadRegistrations(),loadTemplates(),loadCamp(),loadMaintenance()]);
 }
 function showLogin(){document.getElementById('loginView').classList.remove('hidden');document.getElementById('appView').classList.add('hidden');document.getElementById('logoutBtn').classList.add('hidden');}
 async function logout(){await db.auth.signOut();showLogin();}
@@ -270,6 +286,71 @@ function formatCampDetails(){
   if(campSettings.instructions) parts.push(campSettings.instructions);
   return parts.join('\n')||'[Camp details will be updated by Admin]';
 }
+
+async function loadMaintenance(){
+  const {data,error}=await db.from('rfid_maintenance_outstanding').select('*').order('wing').order('unit_number');
+  if(error){console.error(error);return;}
+  maintenanceRows=data||[]; renderMaintenance();
+}
+function maintenanceEligible(amount){return Number(amount||0)<=7000;}
+function renderMaintenance(){
+  const eligible=maintenanceRows.filter(x=>maintenanceEligible(x.outstanding_amount)).length;
+  const restricted=maintenanceRows.filter(x=>!maintenanceEligible(x.outstanding_amount)).length;
+  document.getElementById('maintenanceSummary').innerHTML='<div class="stat"><span class="muted">Uploaded Flats</span><b>'+maintenanceRows.length+'</b></div><div class="stat"><span class="muted">Eligible</span><b>'+eligible+'</b></div><div class="stat"><span class="muted">Restricted</span><b>'+restricted+'</b></div>';
+  document.getElementById('maintenanceBody').innerHTML=maintenanceRows.slice(0,300).map(x=>'<tr><td><b>'+esc(x.wing+'-'+x.unit_number)+'</b></td><td>₹'+Number(x.outstanding_amount||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+'</td><td>'+ (maintenanceEligible(x.outstanding_amount)?'<span class="badge approved">Eligible</span>':'<span class="badge rejected">Restricted</span>') +'</td><td>'+esc(x.updated_at?new Date(x.updated_at).toLocaleString('en-IN'):'-')+'</td></tr>').join('')||'<tr><td colspan="4" class="muted">No maintenance data uploaded yet.</td></tr>';
+}
+function normalizeHeader(v){return String(v||'').toLowerCase().replace(/[^a-z0-9]/g,'');}
+function findColumn(headers,names){
+  const normalized=headers.map(normalizeHeader);
+  for(const n of names){const idx=normalized.indexOf(normalizeHeader(n));if(idx>=0)return idx;}
+  return -1;
+}
+async function uploadMaintenance(){
+  const input=document.getElementById('maintenanceFile'), file=input.files?.[0], msg=document.getElementById('maintenanceMsg');
+  if(!file){msg.textContent='Please select an Excel file.';return;}
+  if(typeof XLSX==='undefined'){msg.textContent='Excel reader is unavailable. Please refresh the page.';return;}
+  msg.textContent='Reading and validating file…';
+  try{
+    const buf=await file.arrayBuffer();
+    const wb=XLSX.read(buf,{type:'array'});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+    if(rows.length<2) throw new Error('The Excel file has no data rows.');
+    const headers=rows[0];
+    const wingIdx=findColumn(headers,['Wing','Premise / Wing','Premise']);
+    const flatIdx=findColumn(headers,['Flat No','Flat No.','Unit Number','Flat Number','Unit']);
+    const amountIdx=findColumn(headers,['Maintenance Outstanding','Outstanding Amount','Outstanding','Maintenance Due','Due Amount']);
+    if(flatIdx<0 || amountIdx<0) throw new Error('Required columns not found. Please use Wing, Flat No. and Maintenance Outstanding.');
+    const {data:{user}}=await db.auth.getUser();
+    let updated=0, invalid=0, bad=0, duplicate=0;
+    const seen=new Set();
+    for(const row of rows.slice(1)){
+      let wing=wingIdx>=0?String(row[wingIdx]??'').trim().toUpperCase():'';
+      let flat=String(row[flatIdx]??'').trim().toUpperCase();
+      let amountRaw=String(row[amountIdx]??'').replace(/[₹,\s]/g,'');
+      if(!flat) continue;
+      if(!wing && flat.includes('-')){const p=flat.split('-');wing=p.shift();flat=p.join('-');}
+      if(wing==='SHOP' && flat.startsWith('SHOP-')) flat=flat.slice(5);
+      flat=flat.replace(/^0+(?=\d)/,'');
+      const key=wing+'|'+flat;
+      if(seen.has(key)){duplicate++;continue;} seen.add(key);
+      const amount=Number(amountRaw);
+      if(!wing || !Number.isFinite(amount) || amount<0){bad++;continue;}
+      const {data:unit,error:unitErr}=await db.from('rfid_unit_master').select('unit_number').eq('wing',wing).eq('unit_number',flat).eq('active',true).maybeSingle();
+      if(unitErr || !unit){invalid++;continue;}
+      const {error}=await db.from('rfid_maintenance_outstanding').upsert({wing,unit_number:flat,outstanding_amount:amount,source_file_name:file.name,uploaded_by:user.id,uploaded_at:new Date().toISOString(),updated_at:new Date().toISOString()},{onConflict:'wing,unit_number'});
+      if(error) bad++; else updated++;
+    }
+    msg.textContent='Upload complete: '+updated+' updated • '+invalid+' invalid flats • '+bad+' invalid rows • '+duplicate+' duplicates.';
+    await loadMaintenance();
+  }catch(e){msg.textContent='Upload failed: '+(e.message||e);}
+}
+function downloadMaintenance(){
+  if(!maintenanceRows.length){alert('No maintenance data available.');return;}
+  const data=maintenanceRows.map(x=>({Wing:x.wing,'Flat No':x.unit_number,'Maintenance Outstanding':Number(x.outstanding_amount||0),'Updated At':x.updated_at||''}));
+  const ws=XLSX.utils.json_to_sheet(data),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Maintenance Outstanding');XLSX.writeFile(wb,'Panvelkar_Stanford_Maintenance_Outstanding.xlsx');
+}
+
 async function loadCamp(){
   const {data,error}=await db.from('rfid_camp_settings').select('*').eq('active',true).order('updated_at',{ascending:false}).limit(1).maybeSingle();
   if(error){console.error(error);return;}
