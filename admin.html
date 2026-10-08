@@ -6,19 +6,19 @@
 <title>Stanford Vehicle Registration — Admin</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-:root{--bg:#f4f6f8;--card:#fff;--text:#17202a;--muted:#68737d;--line:#e3e7eb;--accent:#0b6bcb;--ok:#16803c;--warn:#a15c00;--danger:#b42318}
+:root{--bg:#f3f7fb;--card:#fff;--text:#14213d;--muted:#65748b;--line:#dfe7f1;--accent:#0b63ce;--navy:#102a56;--cyan:#00a6d6;--ok:#16803c;--warn:#a15c00;--danger:#b42318;--gold:#f5b82e}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;color:var(--text)}
-header{background:#102a43;color:#fff;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;gap:16px}
+header{background:linear-gradient(120deg,#102a56,#0b63ce 65%,#00a6d6);color:#fff;padding:20px 24px;display:flex;justify-content:space-between;align-items:center;gap:16px;box-shadow:0 4px 16px rgba(16,42,86,.18)}
 header h1{font-size:19px;margin:0}header small{opacity:.8}
-main{max-width:1450px;margin:22px auto;padding:0 16px}.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:18px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+main{max-width:1450px;margin:22px auto;padding:0 16px}.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:18px;box-shadow:0 6px 22px rgba(20,50,90,.07)}
 .login{max-width:430px;margin:70px auto}.login h2{margin-top:0}
-.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.stat{padding:16px;border:1px solid var(--line);border-radius:12px;background:#fff}.stat b{display:block;font-size:28px;margin-top:5px}.muted{color:var(--muted);font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.stat{padding:18px;border:1px solid var(--line);border-radius:14px;background:linear-gradient(145deg,#fff,#f7fbff);box-shadow:0 5px 18px rgba(20,50,90,.06);border-top:4px solid var(--accent)}.stat b{display:block;font-size:28px;margin-top:5px}.muted{color:var(--muted);font-size:13px}
 input,select,textarea,button{font:inherit}input,select,textarea{width:100%;border:1px solid #ccd3da;border-radius:9px;padding:10px 11px;background:#fff}textarea{min-height:150px;resize:vertical}
 button{border:0;border-radius:9px;padding:10px 14px;cursor:pointer;font-weight:650}.primary{background:var(--accent);color:#fff}.secondary{background:#e9eef3;color:#17202a}.danger{background:#b42318;color:#fff}.success{background:#16803c;color:#fff}.whatsapp{background:#16803c;color:#fff}
 .actions{display:flex;flex-wrap:wrap;gap:8px}.toolbar{display:grid;grid-template-columns:1fr 180px 180px auto;gap:10px;margin-bottom:14px}
 .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:10px}table{width:100%;border-collapse:collapse;min-width:1100px}th,td{padding:10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;font-size:13px}th{background:#f8fafb;position:sticky;top:0;z-index:1}.badge{display:inline-block;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:700}.pending{background:#fff0d6;color:var(--warn)}.approved{background:#dcf7e5;color:var(--ok)}.rejected{background:#fde3e1;color:var(--danger)}.queued{background:#e6f0ff;color:#135da8}
 .hidden{display:none!important}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.form-actions{display:flex;gap:8px;margin-top:10px}.template-item{border:1px solid var(--line);border-radius:10px;padding:12px;margin:8px 0}.template-item strong{display:block;margin-bottom:5px}.template-preview{white-space:pre-wrap;background:#f8fafb;border-radius:8px;padding:10px;font-size:13px}
-.notice{padding:10px 12px;border-radius:9px;background:#eef6ff;color:#135da8;margin-bottom:12px;font-size:13px}
+.notice{padding:12px 14px;border-radius:10px;background:#eef6ff;color:#135da8;margin-bottom:12px;font-size:13px}.camp-card{background:linear-gradient(135deg,#102a56,#0b63ce);color:#fff;border:0}.camp-card label{color:#fff}.camp-card input,.camp-card textarea{border-color:#d5e5f7}.section-title{display:flex;justify-content:space-between;align-items:center;gap:12px}.kicker{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--cyan)}
 @media(max-width:900px){.grid{grid-template-columns:1fr 1fr}.toolbar,.row{grid-template-columns:1fr}.stat b{font-size:24px}}
 </style>
 </head>
@@ -59,6 +59,21 @@ button{border:0;border-radius:9px;padding:10px 14px;cursor:pointer;font-weight:6
     </tr></thead><tbody id="registrationBody"></tbody></table></div>
   </div>
 
+  <div class="card camp-card">
+    <div class="section-title"><div><div class="kicker" style="color:#9deaff">RFID COMMUNICATION</div><h2 style="margin:4px 0 6px">RFID / Barcode Distribution Camp</h2></div><span class="badge" style="background:#fff;color:#102a56">Admin Control</span></div>
+    <p style="opacity:.9">Update the camp details here. The details will automatically appear in the WhatsApp message when you click <b>Send WhatsApp</b>.</p>
+    <div class="row">
+      <div><label>Camp title</label><input id="campTitle" placeholder="RFID / Barcode Distribution Camp"></div>
+      <div><label>Venue</label><input id="campVenue" placeholder="Society Clubhouse / Venue"></div>
+      <div><label>Date</label><input id="campDate" type="date"></div>
+      <div><label>Start time</label><input id="campStart" type="time"></div>
+      <div><label>End time</label><input id="campEnd" type="time"></div>
+      <div><label>Additional instructions</label><textarea id="campInstructions" style="min-height:90px" placeholder="Please bring your vehicle..."></textarea></div>
+    </div>
+    <div class="form-actions"><button class="success" onclick="saveCamp()">Save Camp Details</button></div>
+    <p id="campMsg" style="margin-bottom:0"></p>
+  </div>
+
   <div class="card">
     <h2 style="margin-top:0">WhatsApp Message Templates</h2>
     <div class="notice">Use variables: <b>{{name}}</b>, <b>{{flat}}</b>, <b>{{vehicle_number}}</b>, <b>{{vehicle_company}}</b>, <b>{{vehicle_type}}</b>, <b>{{camp_details}}</b>. The selected template is used when you click <b>Send WhatsApp</b>.</div>
@@ -83,6 +98,7 @@ const SUPABASE_KEY='sb_publishable_x9u_XeQlrOil8VRZ6Kcbjg_48JRq51y';
 const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 let registrations=[];
 let templates=[];
+let campSettings=null;
 let editingTemplateId=null;
 const DEFAULT_TEMPLATE={
   id:'__default__',
@@ -108,7 +124,7 @@ async function boot(){
   }
   document.getElementById('userLabel').textContent=(profile.full_name||user.email)+' • '+profile.role;
   document.getElementById('loginView').classList.add('hidden');document.getElementById('appView').classList.remove('hidden');document.getElementById('logoutBtn').classList.remove('hidden');
-  await Promise.all([loadRegistrations(),loadTemplates()]);
+  await Promise.all([loadRegistrations(),loadTemplates(),loadCamp()]);
 }
 function showLogin(){document.getElementById('loginView').classList.remove('hidden');document.getElementById('appView').classList.add('hidden');document.getElementById('logoutBtn').classList.add('hidden');}
 async function logout(){await db.auth.signOut();showLogin();}
@@ -174,7 +190,7 @@ async function viewRc(id){
 }
 function applyVars(t,r){
   const flat=r.wing+'-'+r.unit_number;
-  const vars={name:r.resident_name||'',flat,vehicle_number:r.vehicle_registration_no||'',vehicle_company:r.vehicle_company||'',vehicle_type:r.vehicle_type||'',camp_details:'[Enter RFID distribution camp date, time and venue]'};
+  const vars={name:r.resident_name||'',flat,vehicle_number:r.vehicle_registration_no||'',vehicle_company:r.vehicle_company||'',vehicle_type:r.vehicle_type||'',camp_details:formatCampDetails()};
   return t.replace(/\{\{(\w+)\}\}/g,(_,k)=>vars[k]??'');
 }
 function getTemplateForSend(){
@@ -189,6 +205,38 @@ function openWhatsApp(id){
   const phone='91'+String(r.mobile||'').replace(/\D/g,'');
   if(phone.length!==12){alert('Invalid Indian mobile number.');return;}
   window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(msg),'_blank');
+}
+function formatCampDetails(){
+  if(!campSettings)return '[Camp details will be updated by Admin]';
+  const parts=[];
+  if(campSettings.camp_date) parts.push('Date: '+new Date(campSettings.camp_date+'T00:00:00').toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}));
+  if(campSettings.start_time) parts.push('Time: '+campSettings.start_time.slice(0,5)+(campSettings.end_time?' - '+campSettings.end_time.slice(0,5):''));
+  if(campSettings.venue) parts.push('Venue: '+campSettings.venue);
+  if(campSettings.instructions) parts.push(campSettings.instructions);
+  return parts.join('\n')||'[Camp details will be updated by Admin]';
+}
+async function loadCamp(){
+  const {data,error}=await db.from('rfid_camp_settings').select('*').eq('active',true).order('updated_at',{ascending:false}).limit(1).maybeSingle();
+  if(error){console.error(error);return;}
+  campSettings=data;
+  if(data){
+    document.getElementById('campTitle').value=data.title||'';
+    document.getElementById('campVenue').value=data.venue||'';
+    document.getElementById('campDate').value=data.camp_date||'';
+    document.getElementById('campStart').value=data.start_time?data.start_time.slice(0,5):'';
+    document.getElementById('campEnd').value=data.end_time?data.end_time.slice(0,5):'';
+    document.getElementById('campInstructions').value=data.instructions||'';
+  }
+}
+async function saveCamp(){
+  const {data:{user}}=await db.auth.getUser();
+  const payload={title:document.getElementById('campTitle').value.trim()||'RFID / Barcode Distribution Camp',venue:document.getElementById('campVenue').value.trim(),camp_date:document.getElementById('campDate').value||null,start_time:document.getElementById('campStart').value||null,end_time:document.getElementById('campEnd').value||null,instructions:document.getElementById('campInstructions').value.trim(),active:true,updated_by:user.id,updated_at:new Date().toISOString()};
+  let result;
+  if(campSettings) result=await db.from('rfid_camp_settings').update(payload).eq('id',campSettings.id);
+  else result=await db.from('rfid_camp_settings').insert(payload).select().single();
+  if(result.error){document.getElementById('campMsg').textContent=result.error.message;return;}
+  campSettings=result.data||{...campSettings,...payload};
+  document.getElementById('campMsg').textContent='Camp details saved successfully.';
 }
 async function loadTemplates(){
   const {data,error}=await db.from('rfid_whatsapp_templates').select('*').order('created_at',{ascending:true});
