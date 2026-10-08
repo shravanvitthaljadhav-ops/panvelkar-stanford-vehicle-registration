@@ -199,16 +199,21 @@ async function rejectRegistration(id){
   if(error){alert(error.message);return;} await loadRegistrations();
 }
 async function viewRc(id){
+  const r=registrations.find(x=>x.id===id);
   const {data:docs,error}=await db.from('rfid_rc_documents').select('*').eq('registration_id',id).order('created_at');
-  if(error){alert(error.message);return;}
-  if(!docs?.length){alert('No RC document found.');return;}
-  let html='RC document(s):\n\n';
+  if(error){alert('Unable to load RC: '+error.message);return;}
+  if(!docs?.length){alert('No RC document found for this registration.');return;}
+  const items=[];
   for(const d of docs){
     const {data:s,error:e}=await db.storage.from('rfid-rc-documents').createSignedUrl(d.storage_path,600);
-    if(e){html+='Unable to create link for '+d.original_file_name+'\\n';continue;}
-    html+=d.original_file_name+'\\n'+s.signedUrl+'\\n\\n';
+    if(e){items.push('<div class="rc-item"><b>'+esc(d.original_file_name)+'</b><p class="muted">Unable to create secure link.</p></div>');continue;}
+    const isPdf=(d.mime_type||'').toLowerCase().includes('pdf');
+    items.push('<div class="rc-item"><div><b>'+esc(d.original_file_name)+'</b><div class="muted">'+esc(d.mime_type||'Document')+'</div></div><div class="rc-actions"><a class="secondary rc-btn" target="_blank" rel="noopener" href="'+esc(s.signedUrl)+'">Open</a><a class="primary rc-btn" download="'+esc(d.stored_file_name||d.original_file_name)+'" href="'+esc(s.signedUrl)+'">Download</a></div>'+ (isPdf?'<iframe class="rc-preview" src="'+esc(s.signedUrl)+'"></iframe>':'<img class="rc-preview rc-image" src="'+esc(s.signedUrl)+'" alt="RC document">') +'</div>');
   }
-  const w=window.open(); if(w){w.document.write('<pre style="white-space:pre-wrap;font-family:Arial;padding:20px">'+esc(html).replace(/\\n/g,'<br>')+'</pre>');}
+  const w=window.open('','_blank');
+  if(!w){alert('Please allow pop-ups for the Admin site to view the RC.');return;}
+  w.document.write('<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>RC Copy — '+esc(r?.wing+'-'+r?.unit_number||'Vehicle')+'</title><style>body{font-family:Arial,sans-serif;background:#f3f7fb;margin:0;padding:16px;color:#14213d}.head{background:linear-gradient(120deg,#102a56,#0b63ce);color:#fff;padding:16px;border-radius:14px;margin-bottom:14px}.rc-item{background:#fff;border:1px solid #dfe7f1;border-radius:14px;padding:12px;margin-bottom:14px;box-shadow:0 4px 14px rgba(20,50,90,.08)}.rc-actions{display:flex;gap:8px;margin:10px 0}.rc-btn{display:inline-block;padding:9px 13px;border-radius:8px;text-decoration:none;font-weight:700}.primary{background:#0b63ce;color:#fff}.secondary{background:#e9eef3;color:#17202a}.muted{color:#65748b;font-size:12px;margin-top:3px}.rc-preview{width:100%;height:65vh;border:1px solid #dfe7f1;border-radius:9px;background:#fafafa}.rc-image{height:auto;max-height:75vh;object-fit:contain}</style></head><body><div class="head"><b>Panvelkar Estate Stanford — RC Copy</b><div style="margin-top:5px;opacity:.9">'+esc(r?.wing+'-'+r?.unit_number||'')+' • '+esc(r?.vehicle_registration_no||'')+'</div></div>'+items.join('')+'</body></html>');
+  w.document.close();
 }
 function getFilteredRows(){
   const q=document.getElementById('search').value.trim().toLowerCase(),sf=document.getElementById('statusFilter').value,rf=document.getElementById('rfidFilter').value;
