@@ -42,6 +42,8 @@ a{text-decoration:none;color:inherit}
 .eyebrow{font-size:11px;letter-spacing:.14em;font-weight:800;color:var(--accent)}
 .hero h1{font-size:clamp(40px,6vw,68px);line-height:1.02;letter-spacing:-.055em;margin:15px 0 20px;max-width:720px}
 .hero p{font-size:17px;line-height:1.7;color:var(--muted);max-width:620px}
+.registration-note{margin:16px 0 0!important;font-size:12px!important;line-height:1.5!important;color:#71808D!important;max-width:620px!important}
+.registration-note strong{color:var(--navy)}
 .hero-actions{display:flex;gap:20px;align-items:center;margin-top:30px}
 .primary-btn{display:inline-flex;align-items:center;justify-content:center;gap:12px;border:0;background:var(--ink);color:#fff;border-radius:12px;padding:14px 20px;font-weight:700;cursor:pointer;transition:.2s}
 .primary-btn:hover{background:#1a3552;transform:translateY(-1px)}
@@ -191,6 +193,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue)!important;box-s
           <a class="primary-btn" href="#register">Register Your Vehicle <span>→</span></a>
           <a class="text-btn" href="#how-it-works">How it works</a>
         </div>
+        <p class="registration-note"><strong>Note:</strong> RFID / Barcode for vehicle entry will be issued only after successful registration.</p>
       </div>
 
       <div class="hero-media">
@@ -240,7 +243,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue)!important;box-s
         <p>Submit a separate registration for each vehicle.</p>
       </div>
 
-      <form id="registrationForm" class="registration-card" onsubmit="event.preventDefault(); alert('Verification-only HTML: submission is disabled.'); return false;">
+      <form id="registrationForm" class="registration-card" >
         <div class="form-grid">
           <label>
             <span>Name</span>
@@ -339,6 +342,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue)!important;box-s
     <span>Vehicle Registration for Auto Gate Barrier Portal</span>
   </footer>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
 const SUPABASE_URL = "https://zawatmovyrjcpgxkqcqq.supabase.co";
 const SUPABASE_KEY = "sb_publishable_x9u_XeQlrOil8VRZ6Kcbjg_48JRq51y";
@@ -380,7 +384,7 @@ function buildUnits(wing) {
 
   if (!wing) return;
 
-  db.from("vehicle_unit_master")
+  db.from("rfid_unit_master")
     .select("unit_number")
     .eq("wing", wing)
     .eq("active", true)
@@ -472,7 +476,7 @@ form.addEventListener("submit", async (event) => {
   event.preventDefault();
   clearMessage();
 
-  const email = document.getElementById("email").value.trim();
+  const residentName = document.getElementById("name").value.trim();
   const mobile = document.getElementById("mobile").value.trim();
   const wing = wingEl.value;
   const unit = unitEl.value;
@@ -507,10 +511,10 @@ form.addEventListener("submit", async (event) => {
   try {
     // Insert registration first. The unique database constraint prevents duplicate vehicle numbers.
     const { error: registrationError } = await db
-      .from("vehicle_vehicle_registrations")
+      .from("rfid_vehicle_registrations")
       .insert({
         id: registrationId,
-        email,
+        resident_name: residentName,
         mobile,
         wing,
         unit_number: unit,
@@ -534,7 +538,7 @@ form.addEventListener("submit", async (event) => {
 
       const { error: uploadError } = await db
         .storage
-        .from("vehicle-rc-documents")
+        .from("rfid-rc-documents")
         .upload(path, file, {
           contentType: file.type,
           upsert: false
@@ -543,7 +547,7 @@ form.addEventListener("submit", async (event) => {
       if (uploadError) throw uploadError;
 
       const { error: documentError } = await db
-        .from("vehicle_rc_documents")
+        .from("rfid_rc_documents")
         .insert({
           registration_id: registrationId,
           storage_path: path,
@@ -557,7 +561,7 @@ form.addEventListener("submit", async (event) => {
     }
 
     showMessage(
-      "Registration submitted successfully. Your details are now pending society verification.",
+      "Thank you for submitting your vehicle details. Your registration has been successfully submitted for Admin Approval. Once your registration is approved, you will receive a WhatsApp message confirming the approval and sharing the RFID distribution camp details. You can then visit the camp to get the barcode fixed to your car by our authorised/expert team. Please do not submit the registration again.",
       "success"
     );
 
