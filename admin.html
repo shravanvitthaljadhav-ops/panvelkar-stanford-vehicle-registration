@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Stanford Vehicle Registration — Admin</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 :root{--bg:#f3f7fb;--card:#fff;--text:#14213d;--muted:#65748b;--line:#dfe7f1;--accent:#0b63ce;--navy:#102a56;--cyan:#00a6d6;--ok:#16803c;--warn:#a15c00;--danger:#b42318;--gold:#f5b82e}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;color:var(--text)}
@@ -17,12 +18,12 @@ input,select,textarea,button{font:inherit}input,select,textarea{width:100%;borde
 button{border:0;border-radius:9px;padding:10px 14px;cursor:pointer;font-weight:650}.primary{background:var(--accent);color:#fff}.secondary{background:#e9eef3;color:#17202a}.danger{background:#b42318;color:#fff}.success{background:#16803c;color:#fff}.whatsapp{background:#16803c;color:#fff}
 .actions{display:flex;flex-wrap:wrap;gap:8px}.toolbar{display:grid;grid-template-columns:1fr 180px 180px auto;gap:10px;margin-bottom:14px}
 .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:10px}table{width:100%;border-collapse:collapse;min-width:1100px}th,td{padding:10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;font-size:13px}th{background:#f8fafb;position:sticky;top:0;z-index:1}.badge{display:inline-block;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:700}.pending{background:#fff0d6;color:var(--warn)}.approved{background:#dcf7e5;color:var(--ok)}.rejected{background:#fde3e1;color:var(--danger)}.queued{background:#e6f0ff;color:#135da8}
-.export-bar{display:flex;justify-content:flex-end;gap:8px;margin:0 0 12px}.export-bar button{font-size:13px}
+.export-bar{display:flex;justify-content:flex-end;gap:8px;margin:0 0 12px}.export-bar button{font-size:13px}.export-bar{flex-wrap:wrap}
 .mobile-list{display:none}.mobile-card{border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:10px;background:#fff;box-shadow:0 4px 12px rgba(20,50,90,.05)}.mobile-card .mc-head{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}.mobile-card .mc-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}.mobile-card .mc-label{font-size:11px;color:var(--muted);text-transform:uppercase}.mobile-card .mc-value{font-weight:650;margin-top:2px;word-break:break-word}.mobile-card .actions button{flex:1;min-width:0}
 .hidden{display:none!important}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.form-actions{display:flex;gap:8px;margin-top:10px}.template-item{border:1px solid var(--line);border-radius:10px;padding:12px;margin:8px 0}.template-item strong{display:block;margin-bottom:5px}.template-preview{white-space:pre-wrap;background:#f8fafb;border-radius:8px;padding:10px;font-size:13px}
-.notice{padding:12px 14px;border-radius:10px;background:#eef6ff;color:#135da8;margin-bottom:12px;font-size:13px}.camp-card{background:linear-gradient(135deg,#102a56,#0b63ce);color:#fff;border:0}.camp-card label{color:#fff}.camp-card input,.camp-card textarea{border-color:#d5e5f7}.section-title{display:flex;justify-content:space-between;align-items:center;gap:12px}.kicker{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--cyan)}
+.notice{padding:12px 14px;border-radius:10px;background:#eef6ff;color:#135da8;margin-bottom:12px;font-size:13px}.camp-card{background:linear-gradient(135deg,#102a56,#0b63ce);color:#fff;border:0}.camp-card label{color:#fff}.camp-card input,.camp-card textarea{border-color:#d5e5f7}.section-title{display:flex;justify-content:space-between;align-items:center;gap:12px}.admin-nav{display:flex;gap:8px;overflow:auto;padding:10px 0;margin-bottom:16px;position:sticky;top:0;z-index:5;background:rgba(243,247,251,.96);backdrop-filter:blur(8px)}.admin-nav a{white-space:nowrap;text-decoration:none;color:var(--navy);background:#fff;border:1px solid var(--line);padding:9px 12px;border-radius:999px;font-size:12px;font-weight:700}.admin-nav a:hover{background:#eef6ff}.kicker{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--cyan)}
 @media(max-width:900px){.grid{grid-template-columns:1fr 1fr}.toolbar,.row{grid-template-columns:1fr}.stat b{font-size:24px}}
-@media(max-width:700px){header{padding:14px 16px;align-items:flex-start}header h1{font-size:16px;line-height:1.3}header small{display:block;margin-top:4px}main{margin:12px auto;padding:0 10px}.card{padding:14px;border-radius:14px}.grid{gap:8px}.stat{padding:12px}.stat b{font-size:22px}.toolbar{gap:8px}.table-wrap{display:none}.mobile-list{display:block}.export-bar{justify-content:stretch}.export-bar button{flex:1;padding:9px 8px;font-size:12px}.mobile-card .actions{display:grid;grid-template-columns:1fr 1fr;gap:7px}.mobile-card .actions button:last-child{grid-column:1/-1}.camp-card .row{gap:10px}.camp-card textarea{min-height:80px!important}.template-item{padding:10px}}
+@media(max-width:700px){header{padding:14px 16px;align-items:flex-start}header h1{font-size:16px;line-height:1.3}header small{display:block;margin-top:4px}main{margin:12px auto;padding:0 10px}.card{padding:14px;border-radius:14px}.grid{gap:8px}.stat{padding:12px}.stat b{font-size:22px}.toolbar{gap:8px}.table-wrap{display:none}.mobile-list{display:block}.export-bar{justify-content:stretch}.export-bar button{flex:1;min-width:30%;padding:9px 8px;font-size:12px}.admin-nav{position:sticky;top:0}.admin-nav a{padding:8px 10px;font-size:11px}.mobile-card .actions{display:grid;grid-template-columns:1fr 1fr;gap:7px}.mobile-card .actions button:last-child{grid-column:1/-1}.camp-card .row{gap:10px}.camp-card textarea{min-height:80px!important}.template-item{padding:10px}}
 </style>
 </head>
 <body>
@@ -42,27 +43,28 @@ button{border:0;border-radius:9px;padding:10px 14px;cursor:pointer;font-weight:6
 </section>
 
 <section id="appView" class="hidden">
-  <div class="grid">
+  <nav class="admin-nav"><a href="#dashboard">Dashboard</a><a href="#registrations">Registrations</a><a href="#camp">Camp Settings</a><a href="#whatsapp">WhatsApp Templates</a><a href="#registrations" onclick="focusPending()">Pending</a></nav>
+  <div id="dashboard" class="grid">
     <div class="stat"><span class="muted">Total</span><b id="totalCount">0</b></div>
     <div class="stat"><span class="muted">Pending</span><b id="pendingCount">0</b></div>
     <div class="stat"><span class="muted">Approved</span><b id="approvedCount">0</b></div>
     <div class="stat"><span class="muted">RFID Activated</span><b id="rfidCount">0</b></div>
   </div>
 
-  <div class="card">
-    <h2 style="margin-top:0">Vehicle Registrations</h2>
+  <div id="registrations" class="card">
+    <div class="section-title"><h2 style="margin-top:0">Vehicle Registrations</h2><span class="muted" id="recordCount">0 records</span></div>
     <div class="toolbar">
       <input id="search" placeholder="Search flat, name, mobile or vehicle number" oninput="renderRegistrations()">
       <select id="statusFilter" onchange="renderRegistrations()"><option value="">All statuses</option><option value="pending_verification">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="correction_required">Correction Required</option></select>
       <select id="rfidFilter" onchange="renderRegistrations()"><option value="">All RFID statuses</option><option value="not_activated">Not Activated</option><option value="queued">Queued</option><option value="activated">Activated</option><option value="blocked">Blocked</option></select>
       <button class="secondary" onclick="loadRegistrations()">Refresh</button>
     </div>
-    <div class="export-bar"><button class="primary" onclick="exportCsv()">Export Filtered CSV</button><button class="secondary" onclick="exportAllCsv()">Export All CSV</button></div><div id="mobileRegistrations"></div><div class="table-wrap"><table><thead><tr>
+    <div class="export-bar"><button class="primary" onclick="exportXlsx()">Export Excel</button><button class="secondary" onclick="exportCsv()">Export Filtered CSV</button><button class="secondary" onclick="printReport()">Print Report</button></div><div id="mobileRegistrations"></div><div class="table-wrap"><table><thead><tr>
       <th>Flat</th><th>Resident</th><th>Mobile</th><th>Vehicle</th><th>Type</th><th>RC</th><th>Status</th><th>RFID</th><th>Actions</th>
     </tr></thead><tbody id="registrationBody"></tbody></table></div>
   </div>
 
-  <div class="card camp-card">
+  <div id="camp" class="card camp-card">
     <div class="section-title"><div><div class="kicker" style="color:#9deaff">RFID COMMUNICATION</div><h2 style="margin:4px 0 6px">RFID / Barcode Distribution Camp</h2></div><span class="badge" style="background:#fff;color:#102a56">Admin Control</span></div>
     <p style="opacity:.9">Update the camp details here. The details will automatically appear in the WhatsApp message when you click <b>Send WhatsApp</b>.</p>
     <div class="row">
@@ -77,7 +79,7 @@ button{border:0;border-radius:9px;padding:10px 14px;cursor:pointer;font-weight:6
     <p id="campMsg" style="margin-bottom:0"></p>
   </div>
 
-  <div class="card">
+  <div id="whatsapp" class="card">
     <h2 style="margin-top:0">WhatsApp Message Templates</h2>
     <div class="notice">Use variables: <b>{{name}}</b>, <b>{{flat}}</b>, <b>{{vehicle_number}}</b>, <b>{{vehicle_company}}</b>, <b>{{vehicle_type}}</b>, <b>{{camp_details}}</b>. The selected template is used when you click <b>Send WhatsApp</b>.</div>
     <div style="max-width:520px;margin-bottom:12px"><label>WhatsApp template for Send WhatsApp</label><select id="sendTemplate"></select></div>
@@ -132,10 +134,13 @@ async function boot(){
 function showLogin(){document.getElementById('loginView').classList.remove('hidden');document.getElementById('appView').classList.add('hidden');document.getElementById('logoutBtn').classList.add('hidden');}
 async function logout(){await db.auth.signOut();showLogin();}
 async function loadRegistrations(){
-  const {data,error}=await db.from('rfid_vehicle_registrations').select('*').order('created_at',{ascending:false});
-  if(error){alert(error.message);return;}
+  const {data,error}=await db.rpc('rfid_admin_list_registrations');
+  if(error){alert('Unable to load registrations: '+error.message);return;}
+  if(!Array.isArray(data)){alert('Unable to load registrations: invalid response from server.');return;}
+  data.sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0);
   registrations=data||[];
   updateStats();renderRegistrations();
+  document.getElementById('recordCount').textContent=registrations.length+' records';
 }
 function updateStats(){
   document.getElementById('totalCount').textContent=registrations.length;
@@ -218,6 +223,17 @@ function exportCsvRows(rows,filename){
 }
 function exportCsv(){const rows=getFilteredRows();exportCsvRows(rows,'Panvelkar_Stanford_Vehicle_Registrations_Filtered.csv');}
 function exportAllCsv(){exportCsvRows(registrations,'Panvelkar_Stanford_Vehicle_Registrations_All.csv');}
+function exportXlsx(){
+  const rows=getFilteredRows();
+  if(!rows.length){alert('No records match the current filters.');return;}
+  const data=rows.map(r=>({Flat:r.wing+'-'+r.unit_number,'Resident Name':r.resident_name||'', 'Resident Status':r.resident_status||'',Mobile:r.mobile||'',Email:r.email||'','Vehicle Company':r.vehicle_company||'','Vehicle Number':r.vehicle_registration_no||'','Vehicle Type':r.vehicle_type||'',Status:r.status||'','RFID Status':r.rfid_status||'','Verification Remarks':r.verification_remarks||'','Submitted At':r.created_at||''}));
+  const ws=XLSX.utils.json_to_sheet(data); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Registrations'); XLSX.writeFile(wb,'Panvelkar_Stanford_Vehicle_Registrations.xlsx');
+}
+function printReport(){
+  const rows=getFilteredRows(); const w=window.open('','_blank'); if(!w)return;
+  w.document.write('<html><head><title>Stanford Vehicle Registration Report</title><style>body{font-family:Arial;padding:20px}table{border-collapse:collapse;width:100%;font-size:11px}th,td{border:1px solid #ccc;padding:6px;text-align:left}h2{color:#102a56}</style></head><body><h2>Panvelkar Estate Stanford — Vehicle Registration Report</h2><p>Total records: '+rows.length+'</p><table><tr><th>Flat</th><th>Resident</th><th>Mobile</th><th>Vehicle</th><th>Company</th><th>Type</th><th>Status</th><th>RFID</th></tr>'+rows.map(r=>'<tr><td>'+esc(r.wing+'-'+r.unit_number)+'</td><td>'+esc(r.resident_name)+'</td><td>'+esc(r.mobile)+'</td><td>'+esc(r.vehicle_registration_no)+'</td><td>'+esc(r.vehicle_company)+'</td><td>'+esc(r.vehicle_type)+'</td><td>'+esc(r.status)+'</td><td>'+esc(r.rfid_status)+'</td></tr>').join('')+'</table><script>window.print()<\/script></body></html>'); w.document.close();
+}
+function focusPending(){document.getElementById('statusFilter').value='pending_verification';renderRegistrations();}
 function applyVars(t,r){
   const flat=r.wing+'-'+r.unit_number;
   const vars={name:r.resident_name||'',flat,vehicle_number:r.vehicle_registration_no||'',vehicle_company:r.vehicle_company||'',vehicle_type:r.vehicle_type||'',camp_details:formatCampDetails()};
