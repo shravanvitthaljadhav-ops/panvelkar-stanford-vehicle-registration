@@ -590,17 +590,6 @@ form.addEventListener("submit", async (event) => {
   );
   const files = [...filesEl.files];
 
-  // Maintenance eligibility is deliberately checked only at final submission.
-  // The Submit button remains available for a complete form even before this check.
-  const maintenanceAllowed = await checkMaintenanceEligibility();
-  if (!maintenanceAllowed) {
-    showMaintenanceRestriction();
-    submitBtn.disabled = false;
-    submitBtn.innerHTML = 'Submit Registration <span>→</span>';
-    updateSubmitState();
-    return;
-  }
-
   if (!/^[6-9][0-9]{9}$/.test(mobile)) {
     showMessage("Please enter a valid 10-digit mobile number.", "error");
     return;
@@ -613,6 +602,17 @@ form.addEventListener("submit", async (event) => {
 
   if (files.length < 1 || files.length > MAX_FILES) {
     showMessage("Please upload 1 or 2 RC files.", "error");
+    return;
+  }
+
+  // Maintenance eligibility is checked only after the user clicks Submit
+  // and all other form validations have passed.
+  const maintenanceAllowed = await checkMaintenanceEligibility();
+  if (!maintenanceAllowed) {
+    showMaintenanceRestriction();
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = 'Submit Registration <span>→</span>';
+    updateSubmitState();
     return;
   }
 
