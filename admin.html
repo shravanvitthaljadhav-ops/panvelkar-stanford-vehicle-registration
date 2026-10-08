@@ -329,7 +329,7 @@ async function uploadMaintenance(){
       let flat=String(row[flatIdx]??'').trim().toUpperCase();
       let amountRaw=String(row[amountIdx]??'').replace(/[₹,\s]/g,'');
       if(!flat) continue;
-      if(!wing && flat.includes('-')){const p=flat.split('-');wing=p.shift();flat=p.join('-');}
+      if(flat.includes('-')){const parts=flat.split('-'); if(parts.length>1){wing=parts[0]||wing; flat=parts.slice(1).join('-');}}
       if(wing==='SHOP' && flat.startsWith('SHOP-')) flat=flat.slice(5);
       flat=flat.replace(/^0+(?=\d)/,'');
       const key=wing+'|'+flat;
