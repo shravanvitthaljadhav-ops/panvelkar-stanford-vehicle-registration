@@ -273,6 +273,10 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue)!important;box-s
             </select>
           </label>
 
+          <div id="maintenanceStatus" class="full" style="margin-top:-10px;padding:11px 13px;border-radius:10px;background:#f7fafc;border:1px solid #dce7ef;color:#71808d;font-size:12px;font-weight:600">
+            Select your wing and flat to check maintenance eligibility.
+          </div>
+
           <label>
             <span>Resident status</span>
             <select id="residentStatus" required>
@@ -367,7 +371,16 @@ const message = document.getElementById("formMessage");
 const submitBtn = document.getElementById("submitBtn");
 const vehicleTypeEl = document.getElementById("vehicleType");
 const accessDeviceEl = document.getElementById("accessDevice");
-function syncAccessDevice(){ const isFour=vehicleTypeEl.value==="4-Wheeler"; const fast=[...accessDeviceEl.options].find(o=>o.value==="Fast Tag"); if(fast){fast.disabled=!isFour; if(!isFour && accessDeviceEl.value==="Fast Tag") accessDeviceEl.value="";} }
+function syncAccessDevice(){
+  const isFour=vehicleTypeEl.value==="4-Wheeler";
+  const fast=[...accessDeviceEl.options].find(o=>o.value==="Fast Tag");
+  const rfid=[...accessDeviceEl.options].find(o=>o.value==="RFID Code");
+  if(fast) fast.disabled=!isFour;
+  if(!isFour){
+    if(accessDeviceEl.value==="Fast Tag" || !accessDeviceEl.value) accessDeviceEl.value="RFID Code";
+    if(rfid) rfid.disabled=false;
+  }
+}
 let maintenanceEligibleState = false;
 let maintenanceChecked = false;
 function updateSubmitState(){
@@ -521,7 +534,7 @@ function showMaintenanceRestriction(){
   modal.innerHTML='<div style="max-width:430px;width:100%;background:#fff;border-radius:18px;padding:26px;box-shadow:0 20px 60px rgba(0,0,0,.22);font-family:inherit"><div style="font-size:28px;margin-bottom:10px">⚠️</div><h3 style="margin:0 0 10px;color:#102238">Vehicle Registration Restricted</h3><p style="margin:0;color:#64748b;line-height:1.6">Please clear the maintenance outstanding amount to register your vehicle. Vehicle registration is restricted when the maintenance outstanding amount is more than ₹7,000.</p><button style="margin-top:18px;width:100%;background:#102238;color:#fff;border:0;border-radius:10px;padding:12px;font-weight:700" onclick="this.closest('div[style*=fixed]').remove()">OK</button></div>';
   document.body.appendChild(modal);
 }
-form.addEventListener("submit", async (event) =>
+form.addEventListener("submit", async (event) => {
   event.preventDefault();
   clearMessage();
 
@@ -623,6 +636,12 @@ form.addEventListener("submit", async (event) =>
     unitEl.innerHTML = '<option value="">Select wing first</option>';
     unitEl.disabled = true;
     fileInfo.textContent = "No files selected";
+    maintenanceChecked = false;
+    maintenanceEligibleState = false;
+    document.getElementById("maintenanceStatus").textContent = "Select your wing and flat to check maintenance eligibility.";
+    document.getElementById("maintenanceStatus").style.color = "#71808d";
+    syncAccessDevice();
+    updateSubmitState();
 
     window.scrollTo({ top: document.getElementById("register").offsetTop - 80, behavior: "smooth" });
 
@@ -630,8 +649,8 @@ form.addEventListener("submit", async (event) =>
     console.error(error);
     showMessage(error.message || "Something went wrong. Please try again.", "error");
   } finally {
-    submitBtn.disabled = false;
     submitBtn.innerHTML = 'Submit Registration <span>→</span>';
+    updateSubmitState();
   }
 });
 
