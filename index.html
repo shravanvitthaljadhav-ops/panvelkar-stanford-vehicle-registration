@@ -273,9 +273,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue)!important;box-s
             </select>
           </label>
 
-          <div id="maintenanceStatus" class="full" style="margin-top:-10px;padding:11px 13px;border-radius:10px;background:#f7fafc;border:1px solid #dce7ef;color:#71808d;font-size:12px;font-weight:600">
-            Select your wing and flat to check maintenance eligibility.
-          </div>
+          <div id="maintenanceStatus" class="full hidden" aria-live="polite" style="margin-top:-10px;padding:11px 13px;border-radius:10px;background:#f7fafc;border:1px solid #dce7ef;color:#71808d;font-size:12px;font-weight:600"></div>
 
           <label>
             <span>Resident status</span>
@@ -376,35 +374,34 @@ function syncAccessDevice(){
   const isFour=type==="4-Wheeler";
   const isTwoOrThree=type==="2-Wheeler" || type==="3-Wheeler";
 
-  // Android/native select controls may ignore option.hidden/disabled.
-  // Therefore Fast Tag is physically removed from the dropdown for 2/3-wheelers
-  // and restored only for 4-Wheeler.
-  let fast=[...accessDeviceEl.options].find(o=>o.value==="Fast Tag");
-  const rfid=[...accessDeviceEl.options].find(o=>o.value==="RFID Code");
+  // Rebuild the native select options on every vehicle-type change. This avoids
+  // Android's native dropdown retaining a previously-rendered Fast Tag option.
+  accessDeviceEl.replaceChildren();
+  const placeholder=document.createElement("option");
+  placeholder.value="";
+  placeholder.textContent="Select option";
+  accessDeviceEl.appendChild(placeholder);
+
+  const rfid=document.createElement("option");
+  rfid.value="RFID Code";
+  rfid.textContent="RFID Code — ₹118 (₹100 + 18% GST)";
+  accessDeviceEl.appendChild(rfid);
 
   if(isFour){
-    if(!fast){
-      fast=document.createElement("option");
-      fast.value="Fast Tag";
-      fast.textContent="Fast Tag — ₹76.70 (₹65 + 18% GST) — 4-Wheeler only";
-      accessDeviceEl.appendChild(fast);
-    }
-    if(rfid) rfid.disabled=false;
+    const fast=document.createElement("option");
+    fast.value="Fast Tag";
+    fast.textContent="Fast Tag — ₹76.70 (₹65 + 18% GST) — 4-Wheeler only";
+    accessDeviceEl.appendChild(fast);
     accessDeviceEl.disabled=false;
-    if(accessDeviceEl.value!=="RFID Code" && accessDeviceEl.value!=="Fast Tag"){
-      accessDeviceEl.value="";
-    }
+    accessDeviceEl.value="";
   }else if(isTwoOrThree){
-    if(fast) fast.remove();
-    if(rfid) rfid.disabled=false;
     accessDeviceEl.value="RFID Code";
+    // Keep the selected RFID visible, but don't let it be changed.
     accessDeviceEl.disabled=true;
   }else{
-    if(fast) fast.remove();
     accessDeviceEl.value="";
     accessDeviceEl.disabled=false;
   }
-
   accessDeviceEl.setCustomValidity("");
 }
 function validateAccessDevice(){
@@ -437,16 +434,18 @@ function updateSubmitState(){
 function setMaintenanceState(eligible, amount){
   maintenanceEligibleState=eligible; maintenanceChecked=true;
   const el=document.getElementById("maintenanceStatus");
+  el.classList.remove("hidden");
   if(eligible){ el.textContent=`Maintenance outstanding: ₹${Number(amount||0).toLocaleString("en-IN")} — Vehicle registration is allowed.`; el.style.color="#176b4d"; }
   else { el.textContent=`Maintenance outstanding: ₹${Number(amount||0).toLocaleString("en-IN")} — Registration restricted.`; el.style.color="#b42318"; }
-  updateSubmitState();
 }
 async function checkMaintenanceEligibility(){
   const wing=wingEl.value, unit=unitEl.value;
+  const statusEl=document.getElementById("maintenanceStatus");
+  statusEl.classList.remove("hidden");
   maintenanceChecked=false; submitBtn.disabled=true; submitBtn.style.opacity=".55";
-  if(!wing||!unit){document.getElementById("maintenanceStatus").textContent="Select your wing and flat to check maintenance eligibility.";return false;}
+  if(!wing||!unit){statusEl.textContent="Please select your wing and flat before submitting.";return false;}
   const {data,error}=await db.rpc("rfid_check_maintenance_eligibility",{p_wing:wing,p_unit_number:unit});
-  if(error){document.getElementById("maintenanceStatus").textContent="Unable to verify maintenance status. Please try again.";return false;}
+  if(error){statusEl.textContent="Unable to verify maintenance status. Please try again.";return false;}
   const result=Array.isArray(data)?data[0]:data;
   if(!result){setMaintenanceState(true,0);return true;}
   if(!result.eligible){setMaintenanceState(false,result.outstanding_amount);return false;}
@@ -700,7 +699,8 @@ form.addEventListener("submit", async (event) => {
     fileInfo.textContent = "No files selected";
     maintenanceChecked = false;
     maintenanceEligibleState = false;
-    document.getElementById("maintenanceStatus").textContent = "Select your wing and flat to check maintenance eligibility.";
+    document.getElementById("maintenanceStatus").textContent = "";
+    document.getElementById("maintenanceStatus").classList.add("hidden");
     document.getElementById("maintenanceStatus").style.color = "#71808d";
     syncAccessDevice();
     updateSubmitState();
