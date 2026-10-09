@@ -357,8 +357,9 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue)!important;box-s
 const SUPABASE_URL = "https://zawatmovyrjcpgxkqcqq.supabase.co";
 const SUPABASE_KEY = "sb_publishable_x9u_XeQlrOil8VRZ6Kcbjg_48JRq51y";
 
-const { createClient } = window.supabase;
-const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+// Keep the registration UI functional even if the Supabase CDN is temporarily unavailable.
+const createClient = window.supabase && window.supabase.createClient;
+const db = createClient ? createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 
 const form = document.getElementById("registrationForm");
 const wingEl = document.getElementById("wing");
@@ -444,8 +445,16 @@ async function checkMaintenanceEligibility(){
   statusEl.classList.remove("hidden");
   maintenanceChecked=false; submitBtn.disabled=true; submitBtn.style.opacity=".55";
   if(!wing||!unit){statusEl.textContent="Please select your wing and flat before submitting.";return false;}
-  const {data,error}=await db.rpc("rfid_check_maintenance_eligibility",{p_wing:wing,p_unit_number:unit});
-  if(error){statusEl.textContent="Unable to verify maintenance status. Please try again.";return false;}
+  if(!db){statusEl.textContent="Registration service is temporarily unavailable. Please refresh and try again.";return false;}
+  let response;
+  try {
+    response = await db.rpc("rfid_check_maintenance_eligibility",{p_wing:wing,p_unit_number:unit});
+  } catch (e) {
+    statusEl.textContent="Unable to verify maintenance status. Please refresh and try again.";
+    return false;
+  }
+  const {data,error}=response;
+  if(error){statusEl.textContent="Unable to verify maintenance status. Please refresh and try again.";return false;}
   const result=Array.isArray(data)?data[0]:data;
   if(!result){setMaintenanceState(true,0);return true;}
   if(!result.eligible){setMaintenanceState(false,result.outstanding_amount);return false;}
@@ -621,7 +630,12 @@ form.addEventListener("submit", async (event) => {
   // and all other form validations have passed.
   const maintenanceAllowed = await checkMaintenanceEligibility();
   if (!maintenanceAllowed) {
-    showMaintenanceRestriction();
+    const maintenanceText = document.getElementById("maintenanceStatus").textContent || "";
+    if (!maintenanceText.startsWith("Unable to verify") && !maintenanceText.startsWith("Registration service is temporarily unavailable")) {
+      showMaintenanceRestriction();
+    } else {
+      showMessage(maintenanceText, "error");
+    }
     submitBtn.disabled = false;
     submitBtn.innerHTML = 'Submit Registration <span>→</span>';
     updateSubmitState();
