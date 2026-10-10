@@ -608,9 +608,10 @@ async function checkMaintenanceEligibility() {
       return { ok:false, serviceError:true };
     }
     const result = Array.isArray(data) ? data[0] : data;
-    if (!result) {
-      setMaintenanceState(true,0);
-      return { ok:true };
+    if (!result || result.outstanding_amount === null || result.outstanding_amount === undefined) {
+      statusEl.textContent = result?.message || "Maintenance outstanding data is unavailable for this flat/shop. Registration cannot continue until the society maintenance data is verified.";
+      statusEl.style.color = "#b42318";
+      return { ok:false, serviceError:true };
     }
     setMaintenanceState(Boolean(result.eligible),result.outstanding_amount);
     return { ok:Boolean(result.eligible), serviceError:false };
