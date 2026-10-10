@@ -791,25 +791,6 @@ form.addEventListener("submit", async (event) => {
     updateSubmitState();
   }
 });
-e;
-    maintenanceEligibleState = false;
-    document.getElementById("maintenanceStatus").textContent = "";
-    document.getElementById("maintenanceStatus").classList.add("hidden");
-    document.getElementById("maintenanceStatus").style.color = "#71808d";
-    syncAccessDevice();
-    updateSubmitState();
-
-    window.scrollTo({ top: document.getElementById("register").offsetTop - 80, behavior: "smooth" });
-
-  } catch (error) {
-    console.error(error);
-    showMessage(error.message || "Something went wrong. Please try again.", "error");
-  } finally {
-    submitBtn.innerHTML = 'Submit Registration <span>→</span>';
-    updateSubmitState();
-  }
-});
-
 </script>
 
 <script>
