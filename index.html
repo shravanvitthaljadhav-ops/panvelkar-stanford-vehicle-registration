@@ -138,15 +138,6 @@ footer strong{color:var(--ink)}
   .hero-visual .hero-card { left: 12px; right: 12px; bottom: 12px; }
 }
 
-
-.vehicle-card{border:1px solid var(--line);border-radius:16px;padding:20px;margin-top:16px;background:#fff}
-.vehicle-card-heading{display:flex;align-items:center;gap:12px;margin-bottom:18px;font-size:15px}
-.vehicle-limit-note{font-size:11px;color:var(--muted);font-weight:600}
-.remove-vehicle{margin-left:auto;border:1px solid #e4bcbc;background:#fff7f7;color:#9b1c1c;border-radius:8px;padding:8px 11px;font:inherit;font-size:12px;cursor:pointer}
-.vehicle-fields{row-gap:18px}
-.add-vehicle-row{display:flex;flex-direction:column;align-items:flex-start;gap:10px;margin-top:16px}
-.add-vehicle-row .primary-btn{padding:12px 16px}
-.vehicle-limit-info{font-size:12px;color:var(--muted)}
 </style>
 
 <style>
@@ -293,44 +284,40 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue)!important;box-s
             </select>
           </label>
 
-          <div id="vehiclesContainer" class="full">
-            <div class="vehicle-card" data-vehicle-index="0">
-              <div class="vehicle-card-heading"><strong>Vehicle 1</strong><span class="vehicle-limit-note">Required</span></div>
-              <div class="form-grid vehicle-fields">
-                <label>
-                  <span>Vehicle type</span>
-                  <select class="vehicle-type" required>
-                    <option value="">Select vehicle type</option>
-                    <option>2-Wheeler</option>
-                    <option>3-Wheeler</option>
-                    <option>4-Wheeler</option>
-                  </select>
-                </label>
-                <label>
-                  <span>RFID / QR Scanner</span>
-                  <select class="access-device" required>
-                    <option value="">Select option</option>
-                  </select>
-                  <small class="access-device-note">RFID Code is selected automatically for 2- and 3-wheelers.</small>
-                </label>
-                <label class="full">
-                  <span>Vehicle registration number</span>
-                  <input class="vehicle-number" type="text" maxlength="13" required placeholder="Example: MH01AB1234" autocomplete="off" autocapitalize="characters">
-                  <small>CAPITAL LETTERS only. No spaces or hyphens.</small>
-                </label>
-                <label class="full upload-box">
-                  <span>RC Book copy — Vehicle 1</span>
-                  <input class="rc-file" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" required>
-                  <small>1 file per vehicle • Maximum 5 MB • PDF/JPG/PNG/WEBP</small>
-                  <div class="file-info">No file selected</div>
-                </label>
-              </div>
-            </div>
-          </div>
-          <div class="full add-vehicle-row">
-            <button id="addVehicleBtn" class="primary-btn" type="button">＋ Add Another Vehicle</button>
-            <small id="vehicleLimitInfo" class="vehicle-limit-info">Select Owner or Tenant to see your vehicle limits.</small>
-          </div>
+          <label>
+            <span>Vehicle type</span>
+            <select id="vehicleType" required>
+              <option value="">Select vehicle type</option>
+              <option>4-Wheeler</option>
+              <option>3-Wheeler</option>
+              <option>2-Wheeler</option>
+            </select>
+          </label>
+
+          <label>
+            <span>RFID / QR Scanner</span>
+            <select id="accessDevice" required>
+              <option value="">Select option</option>
+              <option value="RFID Code">RFID Code — ₹118 (₹100 + 18% GST)</option>
+              <option value="Fast Tag">Fast Tag — ₹76.70 (₹65 + 18% GST) — 4-Wheeler only</option>
+            </select>
+            <small id="accessDeviceNote">Fast Tag is available only for 4-Wheeler vehicles.</small>
+          </label>
+
+          <label class="full">
+            <span>Vehicle registration number</span>
+            <input id="vehicleNumber" type="text" maxlength="13" required
+              placeholder="Example: MH01AB1234"
+              autocomplete="off" autocapitalize="characters">
+            <small>CAPITAL LETTERS only. No spaces or hyphens.</small>
+          </label>
+
+          <label class="full upload-box">
+            <span>RC Book copy</span>
+            <input id="rcFiles" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple required>
+            <small>Maximum 2 files • Maximum 5 MB per file • PDF/JPG/PNG/WEBP</small>
+            <div id="fileInfo" class="file-info">No files selected</div>
+          </label>
         </div>
 
         <div id="formMessage" class="form-message" hidden></div>
@@ -349,448 +336,400 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue)!important;box-s
     <section class="notice-section">
       <div>
         <span class="eyebrow">IMPORTANT</span>
-       const SUPABASE_URL = "https://zawatmovyrjcpgxkqcqq.supabase.co";
+        <h2>Before you submit</h2>
+      </div>
+      <ul>
+        <li>Submit one form for each vehicle.</li>
+        <li>Enter the registration number exactly as printed on the RC.</li>
+        <li>Upload a clear and readable RC copy.</li>
+        <li>Auto Gate Barrier activation will happen only after verification and approval.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <strong>Panvelkar Estate Stanford CHS Ltd.</strong>
+    <span>Vehicle Registration for Auto Gate Barrier Portal</span>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+const SUPABASE_URL = "https://zawatmovyrjcpgxkqcqq.supabase.co";
 const SUPABASE_KEY = "sb_publishable_x9u_XeQlrOil8VRZ6Kcbjg_48JRq51y";
+
+// Keep the registration UI functional even if the Supabase CDN is temporarily unavailable.
 const createClient = window.supabase && window.supabase.createClient;
 const db = createClient ? createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 
 const form = document.getElementById("registrationForm");
 const wingEl = document.getElementById("wing");
 const unitEl = document.getElementById("unit");
+const filesEl = document.getElementById("rcFiles");
+const fileInfo = document.getElementById("fileInfo");
 const message = document.getElementById("formMessage");
 const submitBtn = document.getElementById("submitBtn");
-const residentStatusEl = document.getElementById("residentStatus");
-const vehiclesContainer = document.getElementById("vehiclesContainer");
-const addVehicleBtn = document.getElementById("addVehicleBtn");
-const vehicleLimitInfo = document.getElementById("vehicleLimitInfo");
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
-const ALLOWED_TYPES = ["application/pdf","image/jpeg","image/png","image/webp"];
-let vehicleSequence = 1;
-let isSubmitting = false;
+const vehicleTypeEl = document.getElementById("vehicleType");
+const accessDeviceEl = document.getElementById("accessDevice");
+function syncAccessDevice(){
+  const type=vehicleTypeEl.value;
+  const isFour=type==="4-Wheeler";
+  const isTwoOrThree=type==="2-Wheeler" || type==="3-Wheeler";
 
-function getLimits() {
-  return residentStatusEl.value === "Owner"
-    ? { total: 4, two: 4, other: 2, label: "Owner" }
-    : residentStatusEl.value === "Tenant"
-      ? { total: 2, two: 2, other: 1, label: "Tenant" }
-      : { total: 0, two: 0, other: 0, label: "" };
-}
-function vehicleCards() { return [...vehiclesContainer.querySelectorAll(".vehicle-card")]; }
-function getVehicleValues(card) {
-  return {
-    type: card.querySelector(".vehicle-type").value,
-    device: card.querySelector(".access-device").value,
-    number: normalizeVehicleNumber(card.querySelector(".vehicle-number").value.trim()),
-    file: card.querySelector(".rc-file").files[0] || null
-  };
-}
-function updateVehicleHeadings() {
-  vehicleCards().forEach((card, i) => {
-    card.querySelector(".vehicle-card-heading strong").textContent = "Vehicle " + (i + 1);
-    card.querySelector(".vehicle-card-heading .vehicle-limit-note").textContent = i === 0 ? "Required" : "Optional";
-    card.querySelector(".rc-file").previousElementSibling.textContent = "RC Book copy — Vehicle " + (i + 1);
-    const remove = card.querySelector(".remove-vehicle");
-    if (remove) remove.setAttribute("aria-label", "Remove vehicle " + (i + 1));
-  });
-}
-function updateVehicleLimits() {
-  const limits = getLimits();
-  const count = vehicleCards().length;
-  const addAllowed = limits.total > 0 && count < limits.total;
-  addVehicleBtn.disabled = !addAllowed || isSubmitting;
-  addVehicleBtn.style.opacity = addVehicleBtn.disabled ? ".55" : "1";
-  if (!limits.total) {
-    vehicleLimitInfo.textContent = "Select Owner or Tenant to see your vehicle limits.";
-  } else {
-    vehicleLimitInfo.textContent = limits.label + ": maximum " + limits.total + " vehicles total, including up to " + limits.two + " two-wheelers and " + limits.other + " vehicles in the three-/four-wheeler category.";
+  // Rebuild the native select options on every vehicle-type change. This avoids
+  // Android's native dropdown retaining a previously-rendered Fast Tag option.
+  accessDeviceEl.replaceChildren();
+  const placeholder=document.createElement("option");
+  placeholder.value="";
+  placeholder.textContent="Select option";
+  accessDeviceEl.appendChild(placeholder);
+
+  const rfid=document.createElement("option");
+  rfid.value="RFID Code";
+  rfid.textContent="RFID Code — ₹118 (₹100 + 18% GST)";
+  accessDeviceEl.appendChild(rfid);
+
+  if(isFour){
+    const fast=document.createElement("option");
+    fast.value="Fast Tag";
+    fast.textContent="Fast Tag — ₹76.70 (₹65 + 18% GST) — 4-Wheeler only";
+    accessDeviceEl.appendChild(fast);
+    accessDeviceEl.disabled=false;
+    accessDeviceEl.value="";
+  }else if(isTwoOrThree){
+    accessDeviceEl.value="RFID Code";
+    // Keep the selected RFID visible, but don't let it be changed.
+    accessDeviceEl.disabled=true;
+  }else{
+    accessDeviceEl.value="";
+    accessDeviceEl.disabled=false;
   }
+  accessDeviceEl.setCustomValidity("");
 }
-function syncAccessDevice(card) {
-  const typeEl = card.querySelector(".vehicle-type");
-  const deviceEl = card.querySelector(".access-device");
-  const note = card.querySelector(".access-device-note");
-  const type = typeEl.value;
-  deviceEl.replaceChildren();
-  const placeholder = document.createElement("option");
-  placeholder.value = "";
-  placeholder.textContent = "Select option";
-  deviceEl.appendChild(placeholder);
-  const rfid = document.createElement("option");
-  rfid.value = "RFID Code";
-  rfid.textContent = "RFID Code — ₹118 (₹100 + 18% GST)";
-  deviceEl.appendChild(rfid);
-  if (type === "4-Wheeler") {
-    const fast = document.createElement("option");
-    fast.value = "Fast Tag";
-    fast.textContent = "Fast Tag — ₹76.70 (₹65 + 18% GST)";
-    deviceEl.appendChild(fast);
-    deviceEl.disabled = false;
-    deviceEl.value = "";
-    note.textContent = "Select RFID Code or Fast Tag for this vehicle.";
-  } else if (type === "2-Wheeler" || type === "3-Wheeler") {
-    deviceEl.value = "RFID Code";
-    deviceEl.disabled = true;
-    note.textContent = "RFID Code is selected automatically for this vehicle.";
-  } else {
-    deviceEl.value = "";
-    deviceEl.disabled = false;
-    note.textContent = "Select vehicle type first.";
+function validateAccessDevice(){
+  const type=vehicleTypeEl.value;
+  const device=accessDeviceEl.value;
+  if(!type){
+    accessDeviceEl.setCustomValidity("");
+    return false;
   }
-  deviceEl.setCustomValidity("");
+  if((type==="2-Wheeler" || type==="3-Wheeler") && device!=="RFID Code"){
+    accessDeviceEl.setCustomValidity("RFID Code is mandatory for 2-Wheeler and 3-Wheeler.");
+    return false;
+  }
+  if(type==="4-Wheeler" && device!=="RFID Code" && device!=="Fast Tag"){
+    accessDeviceEl.setCustomValidity("Please select RFID Code or Fast Tag.");
+    return false;
+  }
+  accessDeviceEl.setCustomValidity("");
+  return true;
 }
-function validateVehicleCategoryLimits() {
-  const limits = getLimits();
-  const values = vehicleCards().map(getVehicleValues);
-  const two = values.filter(v => v.type === "2-Wheeler").length;
-  const other = values.filter(v => v.type === "3-Wheeler" || v.type === "4-Wheeler").length;
-  if (!limits.total) return { ok: false, reason: "Please select Owner or Tenant." };
-  if (values.length > limits.total) return { ok: false, reason: limits.label + " registrations are limited to " + limits.total + " vehicles in total." };
-  if (two > limits.two) return { ok: false, reason: limits.label + " registrations allow a maximum of " + limits.two + " two-wheelers." };
-  if (other > limits.other) return { ok: false, reason: limits.label + " registrations allow a maximum of " + limits.other + " vehicles in the three-/four-wheeler category combined." };
-  return { ok: true, reason: "" };
-}
-function validateVehicle(card, showNativeMessage = false) {
-  const v = getVehicleValues(card);
-  const typeEl = card.querySelector(".vehicle-type");
-  const deviceEl = card.querySelector(".access-device");
-  const numberEl = card.querySelector(".vehicle-number");
-  const fileEl = card.querySelector(".rc-file");
-  typeEl.setCustomValidity("");
-  deviceEl.setCustomValidity("");
-  numberEl.setCustomValidity("");
-  fileEl.setCustomValidity("");
-  if (!v.type) { typeEl.setCustomValidity("Please select a vehicle type."); }
-  if (v.type === "4-Wheeler" && !["RFID Code","Fast Tag"].includes(v.device)) {
-    deviceEl.setCustomValidity("Please select RFID Code or Fast Tag for this four-wheeler.");
-  }
-  if ((v.type === "2-Wheeler" || v.type === "3-Wheeler") && v.device !== "RFID Code") {
-    deviceEl.setCustomValidity("RFID Code is mandatory for two- and three-wheelers.");
-  }
-  if (v.number && !validateVehicleNumber(v.number)) {
-    numberEl.setCustomValidity("Please enter a valid vehicle registration number, e.g. MH01AB1234.");
-  }
-  if (!v.file) {
-    fileEl.setCustomValidity("Please upload the RC book copy for this vehicle.");
-  } else if (!ALLOWED_TYPES.includes(v.file.type)) {
-    fileEl.setCustomValidity("Only PDF, JPG, PNG or WEBP files are allowed.");
-  } else if (v.file.size > MAX_FILE_SIZE) {
-    fileEl.setCustomValidity("The RC file must be 5 MB or smaller.");
-  }
-  if (showNativeMessage) {
-    const firstInvalid = [typeEl, deviceEl, numberEl, fileEl].find(el => !el.checkValidity());
-    if (firstInvalid) firstInvalid.reportValidity();
-  }
-  return [typeEl, deviceEl, numberEl, fileEl].every(el => el.checkValidity());
-}
-function updateSubmitState() {
-  const limitCheck = validateVehicleCategoryLimits();
-  const vehiclesValid = vehicleCards().length > 0 && vehicleCards().every(card => validateVehicle(card));
-  const allowed = !isSubmitting && form.checkValidity() && vehiclesValid && limitCheck.ok;
+let maintenanceEligibleState = false;
+let maintenanceChecked = false;
+function updateSubmitState(){
+  // Maintenance eligibility is checked only when the user clicks Submit.
+  const allowed = validateAccessDevice() && form.checkValidity();
   submitBtn.disabled = !allowed;
   submitBtn.style.opacity = allowed ? "1" : ".55";
-  if (allowed) submitBtn.removeAttribute("aria-disabled");
-  else submitBtn.setAttribute("aria-disabled","true");
-  updateVehicleLimits();
+  if(allowed) submitBtn.removeAttribute("aria-disabled"); else submitBtn.setAttribute("aria-disabled","true");
 }
-function addVehicleCard() {
-  const limits = getLimits();
-  if (!limits.total || vehicleCards().length >= limits.total) return;
-  const index = vehicleSequence++;
-  const card = document.createElement("div");
-  card.className = "vehicle-card";
-  card.dataset.vehicleIndex = String(index);
-  card.innerHTML = `
-    <div class="vehicle-card-heading">
-      <strong>Vehicle</strong><span class="vehicle-limit-note">Optional</span>
-      <button type="button" class="remove-vehicle" aria-label="Remove vehicle" title="Remove vehicle">Remove</button>
-    </div>
-    <div class="form-grid vehicle-fields">
-      <label><span>Vehicle type</span>
-        <select class="vehicle-type" required>
-          <option value="">Select vehicle type</option><option>2-Wheeler</option><option>3-Wheeler</option><option>4-Wheeler</option>
-        </select>
-      </label>
-      <label><span>RFID / QR Scanner</span>
-        <select class="access-device" required><option value="">Select option</option></select>
-        <small class="access-device-note">RFID Code is selected automatically for 2- and 3-wheelers.</small>
-      </label>
-      <label class="full"><span>Vehicle registration number</span>
-        <input class="vehicle-number" type="text" maxlength="13" required placeholder="Example: MH01AB1234" autocomplete="off" autocapitalize="characters">
-        <small>CAPITAL LETTERS only. No spaces or hyphens.</small>
-      </label>
-      <label class="full upload-box"><span>RC Book copy</span>
-        <input class="rc-file" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" required>
-        <small>1 file per vehicle • Maximum 5 MB • PDF/JPG/PNG/WEBP</small>
-        <div class="file-info">No file selected</div>
-      </label>
-    </div>`;
-  card.querySelector(".remove-vehicle").addEventListener("click", () => {
-    card.remove();
-    updateVehicleHeadings();
-    clearMessage();
-    updateSubmitState();
-  });
-  vehiclesContainer.appendChild(card);
-  bindVehicleCard(card);
-  updateVehicleHeadings();
-  updateSubmitState();
-  card.scrollIntoView({behavior:"smooth",block:"nearest"});
-}
-function bindVehicleCard(card) {
-  const typeEl = card.querySelector(".vehicle-type");
-  const deviceEl = card.querySelector(".access-device");
-  const numberEl = card.querySelector(".vehicle-number");
-  const fileEl = card.querySelector(".rc-file");
-  typeEl.addEventListener("change", () => { syncAccessDevice(card); clearMessage(); updateSubmitState(); });
-  deviceEl.addEventListener("change", () => { clearMessage(); updateSubmitState(); });
-  numberEl.addEventListener("input", () => {
-    numberEl.value = numberEl.value.toUpperCase().replace(/[\s-]/g,"");
-    clearMessage(); updateSubmitState();
-  });
-  fileEl.addEventListener("change", () => {
-    const file = fileEl.files[0];
-    const info = card.querySelector(".file-info");
-    fileEl.setCustomValidity("");
-    if (!file) info.textContent = "No file selected";
-    else if (!ALLOWED_TYPES.includes(file.type)) {
-      fileEl.value = ""; info.textContent = "No file selected";
-      showMessage("Only PDF, JPG, PNG or WEBP files are allowed.", "error");
-    } else if (file.size > MAX_FILE_SIZE) {
-      fileEl.value = ""; info.textContent = "No file selected";
-      showMessage("Each RC file must be 5 MB or smaller.", "error");
-    } else {
-      info.textContent = file.name + " (" + (file.size / 1024 / 1024).toFixed(2) + " MB)";
-      clearMessage();
-    }
-    updateSubmitState();
-  });
-}
-function setMaintenanceState(eligible, amount) {
-  const el = document.getElementById("maintenanceStatus");
+function setMaintenanceState(eligible, amount){
+  maintenanceEligibleState=eligible; maintenanceChecked=true;
+  const el=document.getElementById("maintenanceStatus");
   el.classList.remove("hidden");
-  if (eligible) {
-    el.textContent = "Maintenance outstanding: ₹" + Number(amount || 0).toLocaleString("en-IN") + " — Vehicle registration is allowed.";
-    el.style.color = "#176b4d";
-  } else {
-    el.textContent = "Maintenance outstanding: ₹" + Number(amount || 0).toLocaleString("en-IN") + " — Registration restricted.";
-    el.style.color = "#b42318";
-  }
+  if(eligible){ el.textContent=`Maintenance outstanding: ₹${Number(amount||0).toLocaleString("en-IN")} — Vehicle registration is allowed.`; el.style.color="#176b4d"; }
+  else { el.textContent=`Maintenance outstanding: ₹${Number(amount||0).toLocaleString("en-IN")} — Registration restricted.`; el.style.color="#b42318"; }
 }
-async function checkMaintenanceEligibility() {
-  const statusEl = document.getElementById("maintenanceStatus");
+async function checkMaintenanceEligibility(){
+  const wing=wingEl.value, unit=unitEl.value;
+  const statusEl=document.getElementById("maintenanceStatus");
   statusEl.classList.remove("hidden");
-  if (!wingEl.value || !unitEl.value) {
-    statusEl.textContent = "Please select your wing and flat before submitting.";
-    return { ok:false, serviceError:true };
-  }
-  if (!db) {
-    statusEl.textContent = "Registration service is temporarily unavailable. Please refresh and try again.";
-    return { ok:false, serviceError:true };
-  }
+  maintenanceChecked=false; submitBtn.disabled=true; submitBtn.style.opacity=".55";
+  if(!wing||!unit){statusEl.textContent="Please select your wing and flat before submitting.";return false;}
+  if(!db){statusEl.textContent="Registration service is temporarily unavailable. Please refresh and try again.";return false;}
+  let response;
   try {
-    const {data,error} = await db.rpc("rfid_check_maintenance_eligibility",{p_wing:wingEl.value,p_unit_number:unitEl.value});
-    if (error) {
-      statusEl.textContent = "Unable to verify maintenance status. Please refresh and try again.";
-      return { ok:false, serviceError:true };
-    }
-    const result = Array.isArray(data) ? data[0] : data;
-    if (!result) {
-      setMaintenanceState(true,0);
-      return { ok:true };
-    }
-    setMaintenanceState(Boolean(result.eligible),result.outstanding_amount);
-    return { ok:Boolean(result.eligible), serviceError:false };
-  } catch (error) {
-    statusEl.textContent = "Unable to verify maintenance status. Please refresh and try again.";
-    return { ok:false, serviceError:true };
+    response = await db.rpc("rfid_check_maintenance_eligibility",{p_wing:wing,p_unit_number:unit});
+  } catch (e) {
+    statusEl.textContent="Unable to verify maintenance status. Please refresh and try again.";
+    return false;
   }
+  const {data,error}=response;
+  if(error){statusEl.textContent="Unable to verify maintenance status. Please refresh and try again.";return false;}
+  const result=Array.isArray(data)?data[0]:data;
+  if(!result){setMaintenanceState(true,0);return true;}
+  if(!result.eligible){setMaintenanceState(false,result.outstanding_amount);return false;}
+  setMaintenanceState(true,result.outstanding_amount);return true;
 }
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const MAX_FILES = 2;
+const ALLOWED_TYPES = [
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp"
+];
+
 function showMessage(text, type) {
   message.hidden = false;
   message.className = "form-message " + type;
   message.textContent = text;
 }
+
 function clearMessage() {
   message.hidden = true;
   message.textContent = "";
 }
-function normalizeVehicleNumber(value) { return value.toUpperCase().replace(/[\s-]/g, ""); }
-function validateVehicleNumber(value) {
-  return /^[A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{4}$/.test(value) ||
-         /^[0-9]{2}BH[0-9]{4}[A-Z]{1,2}$/.test(value);
-}
-function makeSafeFileName(name) { return name.replace(/[^a-zA-Z0-9._-]/g, "_"); }
-function fileExtension(file) {
-  const map = {"application/pdf":"pdf","image/jpeg":"jpg","image/png":"png","image/webp":"webp"};
-  return map[file.type] || (file.name.split(".").pop() || "pdf").toLowerCase();
-}
-function standardRcFileName(wing, unit, vehicleNumber, file) {
-  return "PANVELKAR_RFID_" + makeSafeFileName(wing.toUpperCase()) + "_" +
-    makeSafeFileName(unit.toUpperCase()) + "_" + makeSafeFileName(vehicleNumber.toUpperCase()) +
-    "_RC." + fileExtension(file);
-}
-function showMaintenanceRestriction() {
-  const modal = document.createElement("div");
-  modal.style.cssText = "position:fixed;inset:0;background:rgba(15,23,42,.58);display:flex;align-items:center;justify-content:center;padding:20px;z-index:9999";
-  modal.innerHTML = '<div style="max-width:430px;width:100%;background:#fff;border-radius:18px;padding:26px;box-shadow:0 20px 60px rgba(0,0,0,.22);font-family:inherit"><div style="font-size:28px;margin-bottom:10px">⚠️</div><h3 style="margin:0 0 10px;color:#102238">Vehicle Registration Restricted</h3><p style="margin:0;color:#64748b;line-height:1.6">Please clear the maintenance outstanding amount to register your vehicle. Vehicle registration is restricted when the maintenance outstanding amount is more than ₹7,000.</p><button style="margin-top:18px;width:100%;background:#102238;color:#fff;border:0;border-radius:10px;padding:12px;font-weight:700" onclick="this.parentElement.parentElement.remove()">OK</button></div>';
-  document.body.appendChild(modal);
-}
+
 function buildUnits(wing) {
   unitEl.innerHTML = '<option value="">Select unit</option>';
   unitEl.disabled = true;
-  if (!wing || !db) return;
-  db.from("rfid_unit_master").select("unit_number").eq("wing",wing).eq("active",true).order("unit_number",{ascending:true})
-    .then(({data,error}) => {
-      if (error) { showMessage("Unable to load the unit list. Please refresh and try again.","error"); return; }
+
+  if (!wing) return;
+
+  db.from("rfid_unit_master")
+    .select("unit_number")
+    .eq("wing", wing)
+    .eq("active", true)
+    .order("unit_number", { ascending: true })
+    .then(({ data, error }) => {
+      if (error) {
+        showMessage("Unable to load the unit list. Please refresh and try again.", "error");
+        return;
+      }
+
       for (const row of data || []) {
         const option = document.createElement("option");
         option.value = row.unit_number;
-        option.textContent = wing === "Shop" ? "Shop-" + row.unit_number : wing + "-" + String(row.unit_number).padStart(4,"0");
+        option.textContent = wing === "Shop" ? `Shop-${row.unit_number}` : `${wing}-${String(row.unit_number).padStart(4, "0")}`;
         unitEl.appendChild(option);
       }
       unitEl.disabled = false;
     });
 }
-function showNativeValidation() {
-  if (!form.checkValidity()) { form.reportValidity(); return false; }
-  const firstCard = vehicleCards().find(card => !validateVehicle(card,true));
-  return !firstCard;
-}
-addVehicleBtn.addEventListener("click", addVehicleCard);
-residentStatusEl.addEventListener("change", () => {
-  const limits = getLimits();
-  const count = vehicleCards().length;
-  if (limits.total && count > limits.total) {
-    vehicleCards().slice(limits.total).forEach(card => card.remove());
-    updateVehicleHeadings();
-  }
-  clearMessage();
-  updateSubmitState();
-});
-wingEl.addEventListener("change", () => {
-  buildUnits(wingEl.value);
-  document.getElementById("maintenanceStatus").classList.add("hidden");
-  clearMessage();
-  updateSubmitState();
-});
-unitEl.addEventListener("change", () => {
-  document.getElementById("maintenanceStatus").classList.add("hidden");
-  clearMessage();
-  updateSubmitState();
-});
+
+vehicleTypeEl.addEventListener("change", () => { syncAccessDevice(); validateAccessDevice(); updateSubmitState(); });
+accessDeviceEl.addEventListener("change", () => { validateAccessDevice(); updateSubmitState(); });
+syncAccessDevice();
+updateSubmitState();
+wingEl.addEventListener("change", () => { buildUnits(wingEl.value); maintenanceChecked=false; maintenanceEligibleState=false; updateSubmitState(); });
+unitEl.addEventListener("change", () => { maintenanceChecked=false; maintenanceEligibleState=false; updateSubmitState(); });
 form.addEventListener("input", updateSubmitState);
 form.addEventListener("change", updateSubmitState);
-bindVehicleCard(vehicleCards()[0]);
-syncAccessDevice(vehicleCards()[0]);
-updateVehicleHeadings();
-updateSubmitState();
 
+filesEl.addEventListener("change", () => {
+  const files = [...filesEl.files];
+
+  if (!files.length) {
+    fileInfo.textContent = "No files selected";
+    updateSubmitState();
+    return;
+  }
+
+  if (files.length > MAX_FILES) {
+    filesEl.value = "";
+    fileInfo.textContent = "No files selected";
+    showMessage("Please select a maximum of 2 RC files.", "error");
+    return;
+  }
+
+  for (const file of files) {
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      filesEl.value = "";
+      fileInfo.textContent = "No files selected";
+      showMessage("Only PDF, JPG, PNG or WEBP files are allowed.", "error");
+      return;
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      filesEl.value = "";
+      fileInfo.textContent = "No files selected";
+      showMessage("Each RC file must be 5 MB or smaller.", "error");
+      return;
+    }
+  }
+
+  fileInfo.textContent = files.map(f => `${f.name} (${(f.size / 1024 / 1024).toFixed(2)} MB)`).join(" • ");
+  clearMessage();
+});
+
+function normalizeVehicleNumber(value) {
+  return value.toUpperCase().replace(/[\s-]/g, "");
+}
+
+function validateVehicleNumber(value) {
+  return /^[A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{4}$/.test(value) ||
+         /^[0-9]{2}BH[0-9]{4}[A-Z]{1,2}$/.test(value);
+}
+
+function makeSafeFileName(name) {
+  return name.replace(/[^a-zA-Z0-9._-]/g, "_");
+}
+
+function fileExtension(file) {
+  const map = {
+    "application/pdf": "pdf",
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp"
+  };
+  return map[file.type] || (file.name.split(".").pop() || "pdf").toLowerCase();
+}
+
+function standardRcFileName(wing, unit, vehicleNumber, index, file) {
+  const safeWing = makeSafeFileName(wing.toUpperCase());
+  const safeUnit = makeSafeFileName(unit.toUpperCase());
+  const safeVehicle = makeSafeFileName(vehicleNumber.toUpperCase());
+  const serial = String(index + 1).padStart(2, "0");
+  return `PANVELKAR_RFID_${safeWing}_${safeUnit}_${safeVehicle}_RC${serial}.${fileExtension(file)}`;
+}
+
+function showMaintenanceRestriction(){
+  const modal=document.createElement("div"); modal.style.cssText="position:fixed;inset:0;background:rgba(15,23,42,.58);display:flex;align-items:center;justify-content:center;padding:20px;z-index:9999";
+  modal.innerHTML='<div style="max-width:430px;width:100%;background:#fff;border-radius:18px;padding:26px;box-shadow:0 20px 60px rgba(0,0,0,.22);font-family:inherit"><div style="font-size:28px;margin-bottom:10px">⚠️</div><h3 style="margin:0 0 10px;color:#102238">Vehicle Registration Restricted</h3><p style="margin:0;color:#64748b;line-height:1.6">Please clear the maintenance outstanding amount to register your vehicle. Vehicle registration is restricted when the maintenance outstanding amount is more than ₹7,000.</p><button style="margin-top:18px;width:100%;background:#102238;color:#fff;border:0;border-radius:10px;padding:12px;font-weight:700" onclick="this.closest('div[style*=fixed]').remove()">OK</button></div>';
+  document.body.appendChild(modal);
+}
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  if (isSubmitting) return;
   clearMessage();
-  if (!showNativeValidation()) return;
-  const categoryCheck = validateVehicleCategoryLimits();
-  if (!categoryCheck.ok) { showMessage(categoryCheck.reason,"error"); return; }
+
+  const residentName = document.getElementById("name").value.trim();
   const mobile = document.getElementById("mobile").value.trim();
+  const wing = wingEl.value;
+  const unit = unitEl.value;
+  const residentStatus = document.getElementById("residentStatus").value;
+  const vehicleType = document.getElementById("vehicleType").value;
+  const accessDevice = accessDeviceEl.value;
+  if (!form.checkValidity()) {
+    form.reportValidity();
+    return;
+  }
+  if (!validateAccessDevice()) { showMessage(accessDeviceEl.validationMessage || "Please select the correct RFID / QR Scanner option.", "error"); return; }
+  if (!accessDevice) { showMessage("Please select RFID Code or Fast Tag.", "error"); return; }
+  if (accessDevice === "Fast Tag" && vehicleType !== "4-Wheeler") { showMessage("Fast Tag is available only for 4-Wheeler vehicles.", "error"); return; }
+  const vehicleNumber = normalizeVehicleNumber(
+    document.getElementById("vehicleNumber").value.trim()
+  );
+  const files = [...filesEl.files];
+
   if (!/^[6-9][0-9]{9}$/.test(mobile)) {
-    showMessage("Please enter a valid 10-digit mobile number.","error"); return;
-  }
-  const vehicles = vehicleCards().map(getVehicleValues);
-  const normalizedNumbers = vehicles.map(v => v.number);
-  if (new Set(normalizedNumbers).size !== normalizedNumbers.length) {
-    showMessage("Each vehicle must have a different registration number.","error"); return;
-  }
-  for (const v of vehicles) {
-    if (!validateVehicleNumber(v.number)) {
-      showMessage("Please enter a valid vehicle registration number, e.g. MH01AB1234 or 22BH1234AB.","error"); return;
-    }
-    if (v.device === "Fast Tag" && v.type !== "4-Wheeler") {
-      showMessage("Fast Tag is available only for 4-Wheeler vehicles.","error"); return;
-    }
-  }
-  if (!db) {
-    showMessage("Registration service is temporarily unavailable. Please refresh and try again.","error"); return;
+    showMessage("Please enter a valid 10-digit mobile number.", "error");
+    return;
   }
 
-  isSubmitting = true;
-  submitBtn.disabled = true;
-  submitBtn.innerHTML = "Checking maintenance…";
-  updateVehicleLimits();
-  const maintenance = await checkMaintenanceEligibility();
-  if (!maintenance.ok) {
-    if (maintenance.serviceError) showMessage(document.getElementById("maintenanceStatus").textContent,"error");
-    else showMaintenanceRestriction();
-    isSubmitting = false;
+  if (!validateVehicleNumber(vehicleNumber)) {
+    showMessage("Please enter a valid vehicle registration number, e.g. MH01AB1234 or 22BH1234AB.", "error");
+    return;
+  }
+
+  if (files.length < 1 || files.length > MAX_FILES) {
+    showMessage("Please upload 1 or 2 RC files.", "error");
+    return;
+  }
+
+  // Maintenance eligibility is checked only after the user clicks Submit
+  // and all other form validations have passed.
+  const maintenanceAllowed = await checkMaintenanceEligibility();
+  if (!maintenanceAllowed) {
+    const maintenanceText = document.getElementById("maintenanceStatus").textContent || "";
+    if (!maintenanceText.startsWith("Unable to verify") && !maintenanceText.startsWith("Registration service is temporarily unavailable")) {
+      showMaintenanceRestriction();
+    } else {
+      showMessage(maintenanceText, "error");
+    }
+    submitBtn.disabled = false;
     submitBtn.innerHTML = 'Submit Registration <span>→</span>';
     updateSubmitState();
     return;
   }
 
-  submitBtn.innerHTML = "Submitting vehicles…";
-  const residentName = document.getElementById("name").value.trim();
-  const wing = wingEl.value;
-  const unit = unitEl.value;
-  const residentStatus = residentStatusEl.value;
-  const completed = [];
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = "Submitting…";
+
+  // Create the ID in the browser so the uploaded documents can be tied to the registration.
+  const registrationId = crypto.randomUUID();
+
   try {
-    for (const vehicle of vehicles) {
-      const registrationId = crypto.randomUUID();
-      const {error:registrationError} = await db.from("rfid_vehicle_registrations").insert({
+    // Insert registration first. The unique database constraint prevents duplicate vehicle numbers.
+    const { error: registrationError } = await db
+      .from("rfid_vehicle_registrations")
+      .insert({
         id: registrationId,
         resident_name: residentName,
         mobile,
         wing,
         unit_number: unit,
         resident_status: residentStatus,
-        vehicle_type: vehicle.type,
+        vehicle_type: vehicleType,
         vehicle_company: null,
-        access_device: vehicle.device,
-        vehicle_registration_no: vehicle.number
+        access_device: accessDevice,
+        vehicle_registration_no: vehicleNumber
       });
-      if (registrationError) {
-        if (registrationError.code === "23505") throw new Error("Vehicle " + vehicle.number + " has already been registered. Please check the number or contact the society office.");
-        throw registrationError;
+
+    if (registrationError) {
+      if (registrationError.code === "23505") {
+        throw new Error("This vehicle registration number has already been submitted. Please contact the society office if this is an error.");
       }
-      const storedFileName = standardRcFileName(wing,unit,vehicle.number,vehicle.file);
-      const path = registrationId + "/" + storedFileName;
-      const {error:uploadError} = await db.storage.from("rfid-rc-documents").upload(path,vehicle.file,{contentType:vehicle.file.type,upsert:false});
-      if (uploadError) throw uploadError;
-      const {error:documentError} = await db.from("rfid_rc_documents").insert({
-        registration_id:registrationId,
-        storage_path:path,
-        original_file_name:vehicle.file.name,
-        stored_file_name:storedFileName,
-        mime_type:vehicle.file.type,
-        file_size_bytes:vehicle.file.size
-      });
-      if (documentError) throw documentError;
-      completed.push(vehicle.number);
+      throw registrationError;
     }
-    showMessage("Thank you. All " + completed.length + " vehicle(s) have been submitted successfully for Admin Approval. Once approved, you will receive a WhatsApp message with the distribution camp details. Please do not submit these vehicles again.","success");
+
+    // Upload RC files into a private bucket using a standardized filename.
+    for (let index = 0; index < files.length; index++) {
+      const file = files[index];
+      const storedFileName = standardRcFileName(wing, unit, vehicleNumber, index, file);
+      const path = `${registrationId}/${storedFileName}`;
+
+      const { error: uploadError } = await db
+        .storage
+        .from("rfid-rc-documents")
+        .upload(path, file, {
+          contentType: file.type,
+          upsert: false
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { error: documentError } = await db
+        .from("rfid_rc_documents")
+        .insert({
+          registration_id: registrationId,
+          storage_path: path,
+          original_file_name: file.name,
+          stored_file_name: storedFileName,
+          mime_type: file.type,
+          file_size_bytes: file.size
+        });
+
+      if (documentError) throw documentError;
+    }
+
+    showMessage(
+      "Thank you for submitting your vehicle details. Your registration has been successfully submitted for Admin Approval. Once your registration is approved, you will receive a WhatsApp message confirming the approval and sharing the RFID distribution camp details. You can then visit the camp to get the barcode fixed to your car by our authorised/expert team. Please do not submit the registration again.",
+      "success"
+    );
+
     form.reset();
     unitEl.innerHTML = '<option value="">Select wing first</option>';
     unitEl.disabled = true;
-    vehicleCards().slice(1).forEach(card => card.remove());
-    vehicleSequence = 1;
-    updateVehicleHeadings();
-    syncAccessDevice(vehicleCards()[0]);
+    fileInfo.textContent = "No files selected";
+    maintenanceChecked = false;
+    maintenanceEligibleState = false;
     document.getElementById("maintenanceStatus").textContent = "";
     document.getElementById("maintenanceStatus").classList.add("hidden");
+    document.getElementById("maintenanceStatus").style.color = "#71808d";
+    syncAccessDevice();
     updateSubmitState();
-    window.scrollTo({top:document.getElementById("register").offsetTop - 80,behavior:"smooth"});
+
+    window.scrollTo({ top: document.getElementById("register").offsetTop - 80, behavior: "smooth" });
+
   } catch (error) {
     console.error(error);
-    const detail = completed.length
-      ? " Some vehicles were saved before the error occurred (" + completed.join(", ") + "). Please contact the society office before retrying to avoid duplicate registrations."
-      : "";
-    showMessage((error.message || "Something went wrong. Please try again.") + detail,"error");
+    showMessage(error.message || "Something went wrong. Please try again.", "error");
   } finally {
-    isSubmitting = false;
     submitBtn.innerHTML = 'Submit Registration <span>→</span>';
     updateSubmitState();
   }
 });
+
 </script>
 
 <script>
