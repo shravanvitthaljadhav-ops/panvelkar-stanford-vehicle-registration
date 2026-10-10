@@ -71,16 +71,19 @@ button{border:0;border-radius:9px;padding:10px 14px;cursor:pointer;font-weight:6
 
   <div id="maintenance" class="card">
     <div class="section-title"><div><div class="kicker">MAINTENANCE CONTROL</div><h2 style="margin:4px 0 6px">Maintenance Outstanding</h2></div><span class="badge" style="background:#fff0d6;color:#8a5300">Registration limit: ₹7,000</span></div>
-    <p class="muted">Upload the latest Excel file containing Wing, Flat No. and Maintenance Outstanding. Amounts above ₹7,000 will restrict vehicle registration.</p>
-    <div class="notice"><b>Recommended Excel columns:</b> Wing | Flat No. | Maintenance Outstanding</div>
-    <div class="form-actions" style="align-items:center;flex-wrap:wrap">
-      <input id="maintenanceFile" type="file" accept=".xls,.xlsx,.csv" style="max-width:420px">
-      <button class="primary" onclick="uploadMaintenance()">Upload Maintenance Excel</button>
-      <button class="secondary" onclick="downloadMaintenance()">Download Current Data</button>
-    </div>
-    <p id="maintenanceMsg" class="muted"></p>
-    <div id="maintenanceSummary" class="grid" style="grid-template-columns:repeat(3,1fr);margin-top:12px"></div>
-    <div style="margin-top:14px;overflow:auto"><table style="min-width:700px"><thead><tr><th>Flat</th><th>Outstanding</th><th>Registration</th><th>Updated</th></tr></thead><tbody id="maintenanceBody"></tbody></table></div>
+    <p class="muted">Manage balances inside this Admin Portal. Outstanding above ₹7,000 blocks registration. Missing or unverified data is never treated as zero.</p>
+    <div id="maintenanceSummary" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(145px,1fr));margin-top:12px"></div>
+    <h3>Update one flat or shop</h3>
+    <div class="row"><div><label for="maintenanceWing">Wing / Unit Type</label><select id="maintenanceWing"><option value="">Select wing</option><option>R1A</option><option>R1B</option><option>R2</option><option>R3</option><option>R4</option><option>Shop</option></select></div><div><label for="maintenanceUnit">Flat / Shop No.</label><input id="maintenanceUnit" inputmode="numeric" placeholder="e.g. 101"></div><div><label for="maintenanceAmount">Outstanding (₹)</label><input id="maintenanceAmount" type="number" min="0" step="0.01" placeholder="Enter amount"></div></div>
+    <div class="form-actions"><button class="primary" onclick="saveMaintenanceSingle()">Save Outstanding</button><button class="secondary" onclick="clearMaintenanceSingle()">Clear</button></div><p id="maintenanceSingleMsg" class="muted"></p>
+    <hr style="border:0;border-top:1px solid var(--line);margin:20px 0">
+    <h3>Upload maintenance data</h3><p class="muted">Upload .xls, .xlsx, or .csv. Preview and validate all rows before confirming. Existing matching balances will be replaced.</p>
+    <div class="notice"><b>Accepted columns:</b> Wing | Flat / Unit | Outstanding. Unit numbers must match active society units; duplicate and invalid rows are excluded.</div>
+    <div class="form-actions" style="align-items:center;flex-wrap:wrap"><input id="maintenanceFile" type="file" accept=".xls,.xlsx,.csv" style="max-width:420px"><button class="secondary" onclick="previewMaintenanceUpload()">Preview & Validate</button><button id="confirmMaintenanceUpload" class="primary" onclick="confirmMaintenanceUpload()" disabled>Confirm Upload</button><button class="secondary" onclick="downloadMaintenance()">Download Current Data</button><button class="secondary" onclick="loadMaintenance()">Refresh Data</button></div>
+    <p id="maintenanceMsg" class="muted"></p><div id="maintenancePreview"></div>
+    <hr style="border:0;border-top:1px solid var(--line);margin:20px 0"><h3>Wing-wise summary and current balances</h3><div id="maintenanceWingSummary" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-top:12px"></div>
+    <div class="toolbar" style="margin-top:14px"><input id="maintenanceSearch" placeholder="Search wing or flat number" oninput="renderMaintenance()"><select id="maintenanceStatusFilter" onchange="renderMaintenance()"><option value="">All eligibility statuses</option><option value="eligible">Eligible (≤ ₹7,000)</option><option value="restricted">Restricted (&gt; ₹7,000)</option><option value="missing">Missing / unverified</option></select></div>
+    <div style="margin-top:10px;overflow:auto"><table style="min-width:760px"><thead><tr><th>Wing</th><th>Flat / Shop</th><th>Outstanding</th><th>Registration</th><th>Source</th><th>Last Updated</th></tr></thead><tbody id="maintenanceBody"></tbody></table></div>
   </div>
 
   <div id="camp" class="card camp-card">
@@ -289,70 +292,53 @@ function formatCampDetails(){
   return parts.join('\n')||'[Camp details will be updated by Admin]';
 }
 
-async function loadMaintenance(){
-  const {data,error}=await db.from('rfid_maintenance_outstanding').select('*').order('wing').order('unit_number');
-  if(error){console.error(error);return;}
-  maintenanceRows=data||[]; renderMaintenance();
-}
-function maintenanceEligible(amount){return Number(amount||0)<=7000;}
+let maintenancePreviewRows=[];
+function normalizedUnit(v){return String(v??'').trim().toUpperCase().replace(/\.0$/,'').replace(/^0+(?=\d)/,'');}
+function maintenanceKey(w,u){return String(w||'').trim().toUpperCase()+'|'+normalizedUnit(u);}
+function maintenanceStatus(x){if(x.outstanding_amount===null||x.outstanding_amount===undefined||x.outstanding_amount===''||!Number.isFinite(Number(x.outstanding_amount)))return'missing';return Number(x.outstanding_amount)<=7000?'eligible':'restricted';}
+function formatRupees(v){return'₹'+Number(v||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});}
+async function loadMaintenance(){const {data,error}=await db.from('rfid_maintenance_outstanding').select('*').order('wing').order('unit_number');if(error){console.error(error);document.getElementById('maintenanceMsg').textContent='Unable to load maintenance data. Please refresh or contact the system administrator.';return;}maintenanceRows=data||[];renderMaintenance();}
 function renderMaintenance(){
-  const eligible=maintenanceRows.filter(x=>maintenanceEligible(x.outstanding_amount)).length;
-  const restricted=maintenanceRows.filter(x=>!maintenanceEligible(x.outstanding_amount)).length;
-  document.getElementById('maintenanceSummary').innerHTML='<div class="stat"><span class="muted">Uploaded Flats</span><b>'+maintenanceRows.length+'</b></div><div class="stat"><span class="muted">Eligible</span><b>'+eligible+'</b></div><div class="stat"><span class="muted">Restricted</span><b>'+restricted+'</b></div>';
-  document.getElementById('maintenanceBody').innerHTML=maintenanceRows.slice(0,300).map(x=>'<tr><td><b>'+esc(x.wing+'-'+x.unit_number)+'</b></td><td>₹'+Number(x.outstanding_amount||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+'</td><td>'+ (maintenanceEligible(x.outstanding_amount)?'<span class="badge approved">Eligible</span>':'<span class="badge rejected">Restricted</span>') +'</td><td>'+esc(x.updated_at?new Date(x.updated_at).toLocaleString('en-IN'):'-')+'</td></tr>').join('')||'<tr><td colspan="4" class="muted">No maintenance data uploaded yet.</td></tr>';
+ const eligible=maintenanceRows.filter(x=>maintenanceStatus(x)==='eligible').length,restricted=maintenanceRows.filter(x=>maintenanceStatus(x)==='restricted').length,missing=maintenanceRows.filter(x=>maintenanceStatus(x)==='missing').length,total=maintenanceRows.reduce((s,x)=>s+(maintenanceStatus(x)==='missing'?0:Number(x.outstanding_amount)),0);
+ document.getElementById('maintenanceSummary').innerHTML='<div class="stat"><span class="muted">Units with records</span><b>'+maintenanceRows.length+'</b></div><div class="stat"><span class="muted">Total outstanding</span><b>'+formatRupees(total)+'</b></div><div class="stat"><span class="muted">Eligible</span><b>'+eligible+'</b></div><div class="stat"><span class="muted">Restricted</span><b>'+restricted+'</b></div><div class="stat"><span class="muted">Missing / unverified</span><b>'+missing+'</b></div>';
+ const wings={};maintenanceRows.forEach(x=>{const w=x.wing||'Unknown';if(!wings[w])wings[w]={count:0,total:0,restricted:0,missing:0};wings[w].count++;if(maintenanceStatus(x)==='missing')wings[w].missing++;else wings[w].total+=Number(x.outstanding_amount);if(maintenanceStatus(x)==='restricted')wings[w].restricted++;});
+ document.getElementById('maintenanceWingSummary').innerHTML=Object.keys(wings).sort().map(w=>'<div class="stat"><span class="muted">'+esc(w)+'</span><b>'+formatRupees(wings[w].total)+'</b><small>'+wings[w].count+' records · '+wings[w].restricted+' restricted · '+wings[w].missing+' missing</small></div>').join('');
+ const q=(document.getElementById('maintenanceSearch')?.value||'').trim().toUpperCase(),sf=document.getElementById('maintenanceStatusFilter')?.value||'';
+ const filtered=maintenanceRows.filter(x=>(!q||(String(x.wing||'')+' '+String(x.unit_number||'')).toUpperCase().includes(q))&&(!sf||sf===maintenanceStatus(x)));
+ document.getElementById('maintenanceBody').innerHTML=filtered.map(x=>{const s=maintenanceStatus(x),badge=s==='eligible'?'<span class="badge approved">Eligible</span>':s==='restricted'?'<span class="badge rejected">Restricted</span>':'<span class="badge">Unverified</span>';return'<tr><td><b>'+esc(x.wing||'-')+'</b></td><td>'+esc(String(x.unit_number??'-'))+'</td><td>'+(s==='missing'?'—':formatRupees(x.outstanding_amount))+'</td><td>'+badge+'</td><td>'+esc(x.source_file_name||'Manual update')+'</td><td>'+esc(x.updated_at?new Date(x.updated_at).toLocaleString('en-IN'):'-')+'</td></tr>';}).join('')||'<tr><td colspan="6" class="muted">No matching maintenance records.</td></tr>';
+}
+function clearMaintenanceSingle(){['maintenanceWing','maintenanceUnit','maintenanceAmount'].forEach(id=>document.getElementById(id).value='');document.getElementById('maintenanceSingleMsg').textContent='';}
+async function saveMaintenanceSingle(){
+ const wing=document.getElementById('maintenanceWing').value.trim().toUpperCase(),unit=normalizedUnit(document.getElementById('maintenanceUnit').value),raw=document.getElementById('maintenanceAmount').value,amount=Number(raw),msg=document.getElementById('maintenanceSingleMsg');
+ if(!wing||!unit||raw===''||!Number.isFinite(amount)||amount<0){msg.textContent='Select a wing, enter a flat/shop number and a valid non-negative outstanding amount.';return;}
+ msg.textContent='Verifying active unit…';const {data:u,error:ue}=await db.from('rfid_unit_master').select('unit_number').eq('wing',wing).eq('unit_number',unit).eq('active',true).maybeSingle();
+ if(ue||!u){msg.textContent='Unit not verified. Check the wing and flat/shop number; no changes were saved.';return;}
+ const {data:{user}}=await db.auth.getUser();if(!user){msg.textContent='Your session has expired. Please sign in again.';return;}const now=new Date().toISOString();
+ const {error}=await db.from('rfid_maintenance_outstanding').upsert({wing,unit_number:unit,outstanding_amount:amount,source_file_name:'Manual admin update',uploaded_by:user.id,uploaded_at:now,updated_at:now},{onConflict:'wing,unit_number'});
+ if(error){msg.textContent='Save failed: '+error.message;return;}msg.textContent='Outstanding saved for '+wing+'-'+unit+'.';clearMaintenanceSingle();await loadMaintenance();
 }
 function normalizeHeader(v){return String(v||'').toLowerCase().replace(/[^a-z0-9]/g,'');}
-function findColumn(headers,names){
-  const normalized=headers.map(normalizeHeader);
-  for(const n of names){const idx=normalized.indexOf(normalizeHeader(n));if(idx>=0)return idx;}
-  return -1;
+function findColumn(h,names){const n=h.map(normalizeHeader);for(const x of names){const i=n.indexOf(normalizeHeader(x));if(i>=0)return i;}return-1;}
+function parseSpreadsheetXml(text){const xml=new DOMParser().parseFromString(text,'application/xml');if(xml.querySelector('parsererror'))throw new Error('Invalid XML Spreadsheet file.');return[...xml.getElementsByTagNameNS('*','Row')].map(r=>{const vals=[];let next=0;for(const c of [...r.getElementsByTagNameNS('*','Cell')]){const ix=c.getAttributeNS('urn:schemas-microsoft-com:office:spreadsheet','Index')||c.getAttribute('ss:Index');if(ix)next=Math.max(0,Number(ix)-1);const d=c.getElementsByTagNameNS('*','Data')[0];vals[next]=d?d.textContent:'';next++;}return vals.map(v=>v??'');});}
+async function readMaintenanceRows(file){const buf=await file.arrayBuffer(),prefix=new TextDecoder().decode(buf.slice(0,500)).trimStart();if(prefix.startsWith('<?xml')||prefix.includes('<Workbook')||prefix.includes(':Workbook'))return parseSpreadsheetXml(new TextDecoder().decode(buf));if(typeof XLSX==='undefined')throw new Error('Excel reader unavailable. Refresh the page and try again.');const wb=XLSX.read(buf,{type:'array'});if(!wb.SheetNames.length)throw new Error('No worksheet found.');return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:''});}
+async function previewMaintenanceUpload(){
+ const file=document.getElementById('maintenanceFile').files?.[0],msg=document.getElementById('maintenanceMsg'),btn=document.getElementById('confirmMaintenanceUpload');btn.disabled=true;maintenancePreviewRows=[];document.getElementById('maintenancePreview').innerHTML='';if(!file){msg.textContent='Please select an Excel or CSV file first.';return;}msg.textContent='Reading and validating every row…';
+ try{
+  const rows=await readMaintenanceRows(file);if(rows.length<2)throw new Error('The file has no data rows.');const h=rows[0],wi=findColumn(h,['Wing','Premise / Wing','Premise']),ui=findColumn(h,['Flat No','Flat No.','Unit Number','Flat Number','Unit','Flat / Unit','FlatUnit']),ai=findColumn(h,['Maintenance Outstanding','Outstanding Amount','Outstanding','Maintenance Due','Due Amount','Due']);
+  if(ui<0||ai<0)throw new Error('Required columns not found. Include Flat / Unit and Outstanding; include Wing if unit values are not written as Wing-Flat.');
+  const {data:units,error}=await db.from('rfid_unit_master').select('wing,unit_number').eq('active',true);if(error)throw new Error('Could not verify active units: '+error.message);const validUnits=new Set((units||[]).map(u=>maintenanceKey(u.wing,u.unit_number))),seen=new Set(),staged=[];let duplicates=0,invalid=0;
+  for(let i=1;i<rows.length;i++){const r=rows[i];if(!r||r.every(v=>String(v??'').trim()===''))continue;let wing=wi>=0?String(r[wi]??'').trim().toUpperCase():'',unit=String(r[ui]??'').trim().toUpperCase();const m=unit.match(/^(R1[- ]?A|R1[- ]?B|R[234]|SHOP)[- ]+(.+)$/i);if(m){wing=m[1].replace(/[- ]/g,'').toUpperCase();unit=m[2];}if(wing==='R1-A')wing='R1A';if(wing==='R1-B')wing='R1B';if(/^SHOP[- ]/i.test(unit)){wing='Shop';unit=unit.replace(/^SHOP[- ]/i,'');}if(wing==='SHOP')wing='Shop';unit=normalizedUnit(unit);const raw=String(r[ai]??'').replace(/[₹,\s]/g,'');const amount=Number(raw);
+   if(!wing||!unit||raw===''||!Number.isFinite(amount)||amount<0||!validUnits.has(maintenanceKey(wing,unit))){invalid++;continue;}const key=maintenanceKey(wing,unit);if(seen.has(key)){duplicates++;continue;}seen.add(key);staged.push({wing,unit_number:unit,outstanding_amount:amount,source_file_name:file.name});
+  }
+  if(!staged.length)throw new Error('No valid rows found. Check the wing, flat/shop number and outstanding columns.');maintenancePreviewRows=staged;const above=staged.filter(x=>x.outstanding_amount>7000).length;
+  document.getElementById('maintenancePreview').innerHTML='<div class="notice"><b>Validation preview</b><br>Valid unique rows: '+staged.length+' · Duplicate rows skipped: '+duplicates+' · Invalid/unmatched rows skipped: '+invalid+' · Above ₹7,000: '+above+'<br><br>Only validated unique rows will be uploaded. Existing matching balances will be replaced; units absent from the file remain unchanged.</div><div style="overflow:auto;max-height:260px"><table style="min-width:560px"><thead><tr><th>Wing</th><th>Flat / Shop</th><th>Outstanding</th><th>Eligibility</th></tr></thead><tbody>'+staged.slice(0,100).map(x=>'<tr><td>'+esc(x.wing)+'</td><td>'+esc(x.unit_number)+'</td><td>'+formatRupees(x.outstanding_amount)+'</td><td>'+(x.outstanding_amount<=7000?'<span class="badge approved">Eligible</span>':'<span class="badge rejected">Restricted</span>')+'</td></tr>').join('')+'</tbody></table></div>'+(staged.length>100?'<p class="muted">Showing first 100 of '+staged.length+' validated rows.</p>':'');msg.textContent='Preview ready. Review the summary and confirm the upload.';btn.disabled=false;
+ }catch(e){msg.textContent='Validation failed: '+(e.message||e);btn.disabled=true;}
 }
-async function uploadMaintenance(){
-  const input=document.getElementById('maintenanceFile'), file=input.files?.[0], msg=document.getElementById('maintenanceMsg');
-  if(!file){msg.textContent='Please select an Excel file.';return;}
-  if(typeof XLSX==='undefined'){msg.textContent='Excel reader is unavailable. Please refresh the page.';return;}
-  msg.textContent='Reading and validating file…';
-  try{
-    const buf=await file.arrayBuffer();
-    const wb=XLSX.read(buf,{type:'array'});
-    const ws=wb.Sheets[wb.SheetNames[0]];
-    const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
-    if(rows.length<2) throw new Error('The Excel file has no data rows.');
-    const headers=rows[0];
-    const wingIdx=findColumn(headers,['Wing','Premise / Wing','Premise']);
-    const flatIdx=findColumn(headers,['Flat No','Flat No.','Unit Number','Flat Number','Unit']);
-    const amountIdx=findColumn(headers,['Maintenance Outstanding','Outstanding Amount','Outstanding','Maintenance Due','Due Amount']);
-    const flatIdxFinal=flatIdx>=0?flatIdx:findColumn(headers,['FlatUnit']);
-    if(flatIdxFinal<0 || amountIdx<0) throw new Error('Required columns not found. Please use Wing, Flat No. and Maintenance Outstanding.');
-    const {data:{user}}=await db.auth.getUser();
-    let updated=0, invalid=0, bad=0, duplicate=0;
-    const seen=new Set();
-    for(const row of rows.slice(1)){
-      let wing=wingIdx>=0?String(row[wingIdx]??'').trim().toUpperCase():'';
-      let flat=String(row[flatIdxFinal]??'').trim().toUpperCase();
-      let amountRaw=String(row[amountIdx]??'').replace(/[₹,\s]/g,'');
-      if(!flat) continue;
-      if(flat.includes('-')){const parts=flat.split('-'); if(parts.length>1){wing=parts[0]||wing; flat=parts.slice(1).join('-');}}
-      if(wing==='SHOP' && flat.startsWith('SHOP-')) flat=flat.slice(5);
-      flat=flat.replace(/^0+(?=\d)/,'');
-      const key=wing+'|'+flat;
-      if(seen.has(key)){duplicate++;continue;} seen.add(key);
-      const amount=Number(amountRaw);
-      if(!wing || !Number.isFinite(amount) || amount<0){bad++;continue;}
-      const {data:unit,error:unitErr}=await db.from('rfid_unit_master').select('unit_number').eq('wing',wing).eq('unit_number',flat).eq('active',true).maybeSingle();
-      if(unitErr || !unit){invalid++;continue;}
-      const {error}=await db.from('rfid_maintenance_outstanding').upsert({wing,unit_number:flat,outstanding_amount:amount,source_file_name:file.name,uploaded_by:user.id,uploaded_at:new Date().toISOString(),updated_at:new Date().toISOString()},{onConflict:'wing,unit_number'});
-      if(error) bad++; else updated++;
-    }
-    msg.textContent='Upload complete: '+updated+' updated • '+invalid+' invalid flats • '+bad+' invalid rows • '+duplicate+' duplicates.';
-    await loadMaintenance();
-  }catch(e){msg.textContent='Upload failed: '+(e.message||e);}
+async function confirmMaintenanceUpload(){
+ const msg=document.getElementById('maintenanceMsg'),btn=document.getElementById('confirmMaintenanceUpload');if(!maintenancePreviewRows.length){msg.textContent='Preview and validate the file first.';return;}if(!confirm('Confirm upload of '+maintenancePreviewRows.length+' validated maintenance balances? Matching balances will be updated.'))return;btn.disabled=true;msg.textContent='Saving validated balances…';
+ try{const {data:{user}}=await db.auth.getUser();if(!user)throw new Error('Session expired. Please sign in again.');const now=new Date().toISOString(),payload=maintenancePreviewRows.map(x=>({...x,uploaded_by:user.id,uploaded_at:now,updated_at:now}));for(let i=0;i<payload.length;i+=100){const {error}=await db.from('rfid_maintenance_outstanding').upsert(payload.slice(i,i+100),{onConflict:'wing,unit_number'});if(error)throw new Error('A batch was rejected: '+error.message+'. Refresh the data to confirm saved rows.');}msg.textContent='Upload complete: '+payload.length+' validated balances saved.';maintenancePreviewRows=[];document.getElementById('maintenancePreview').innerHTML='';document.getElementById('maintenanceFile').value='';await loadMaintenance();}catch(e){msg.textContent='Upload failed: '+(e.message||e);}finally{btn.disabled=true;}
 }
-function downloadMaintenance(){
-  if(!maintenanceRows.length){alert('No maintenance data available.');return;}
-  const data=maintenanceRows.map(x=>({Wing:x.wing,'Flat No':x.unit_number,'Maintenance Outstanding':Number(x.outstanding_amount||0),'Updated At':x.updated_at||''}));
-  const ws=XLSX.utils.json_to_sheet(data),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Maintenance Outstanding');XLSX.writeFile(wb,'Panvelkar_Stanford_Maintenance_Outstanding.xlsx');
-}
+function downloadMaintenance(){if(!maintenanceRows.length){alert('No maintenance data available.');return;}const data=maintenanceRows.map(x=>({Wing:x.wing,'Flat No':x.unit_number,'Maintenance Outstanding':x.outstanding_amount===null?'':Number(x.outstanding_amount),'Updated At':x.updated_at||''}));const ws=XLSX.utils.json_to_sheet(data),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Maintenance Outstanding');XLSX.writeFile(wb,'Panvelkar_Stanford_Maintenance_Outstanding.xlsx');}
 
 async function loadCamp(){
   const {data,error}=await db.from('rfid_camp_settings').select('*').eq('active',true).order('updated_at',{ascending:false}).limit(1).maybeSingle();
