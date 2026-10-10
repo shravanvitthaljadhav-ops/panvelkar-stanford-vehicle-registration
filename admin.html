@@ -293,7 +293,7 @@ function formatCampDetails(){
 }
 
 let maintenancePreviewRows=[];
-function normalizedUnit(v){return String(v??'').trim().toUpperCase().replace(/\\.0$/,'').replace(/^0+(?=\\d)/,'');}
+function normalizedUnit(v){return String(v??'').trim().toUpperCase().replace(/\.0$/,'').replace(/^0+(?=\d)/,'');}
 function maintenanceKey(w,u){return String(w||'').trim().toUpperCase()+'|'+normalizedUnit(u);}
 function maintenanceStatus(x){if(x.outstanding_amount===null||x.outstanding_amount===undefined||x.outstanding_amount===''||!Number.isFinite(Number(x.outstanding_amount)))return'missing';return Number(x.outstanding_amount)<=7000?'eligible':'restricted';}
 function formatRupees(v){return'₹'+Number(v||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});}
