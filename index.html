@@ -771,9 +771,10 @@ form.addEventListener("submit", async (event) => {
     form.reset();
     unitEl.innerHTML = '<option value="">Select wing first</option>';
     unitEl.disabled = true;
-    vehiclesContainer.innerHTML = '';
+    vehicleCards().slice(1).forEach(card => card.remove());
     vehicleSequence = 1;
-    addVehicleCard();
+    updateVehicleHeadings();
+    syncAccessDevice(vehicleCards()[0]);
     document.getElementById("maintenanceStatus").textContent = "";
     document.getElementById("maintenanceStatus").classList.add("hidden");
     updateSubmitState();
