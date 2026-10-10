@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Maintenance Outstanding Admin | Panvelkar Estate Stanford</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{--ink:#18243a;--muted:#667085;--line:#dbe2ea;--bg:#f4f7fb;--blue:#2359a8;--red:#b42318;--green:#067647}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,system-ui,-apple-system,Segoe UI,sans-serif}
+header{background:#18243a;color:#fff;padding:22px 18px}header .wrap,main{max-width:1050px;margin:auto}h1{font-size:23px;margin:0 0 4px}header p{margin:0;color:#d0d8e5}
+main{padding:22px 16px 40px}.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;margin:0 0 16px;box-shadow:0 2px 8px #18243a08}
+h2{font-size:18px;margin:0 0 14px}.sub{color:var(--muted);font-size:13px;margin-top:-8px;margin-bottom:14px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.field{display:flex;flex-direction:column;gap:6px}.field.full{grid-column:1/-1}label{font-weight:650;font-size:13px}
+input,select{width:100%;min-height:43px;padding:10px 12px;border:1px solid #cbd5e1;border-radius:8px;font:inherit;background:#fff;color:var(--ink)}input[type=file]{padding:8px}
+button{border:0;border-radius:8px;padding:11px 15px;font:600 14px inherit;cursor:pointer;background:var(--blue);color:white}button.secondary{background:#e8eef7;color:#183b69}button.ghost{background:transparent;color:var(--blue);border:1px solid #b9c9df}button:disabled{opacity:.55;cursor:not-allowed}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:15px;align-items:center}.notice{padding:11px 13px;border-radius:8px;margin:12px 0 0;display:none;white-space:pre-wrap}.notice.error{display:block;background:#fff1f0;color:var(--red)}.notice.ok{display:block;background:#ecfdf3;color:var(--green)}.notice.info{display:block;background:#eff6ff;color:#1849a9}
+.hidden{display:none!important}.pill{display:inline-block;border-radius:999px;padding:4px 9px;background:#eef2f7;font-size:12px;color:#344054}.stats{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0}.stats span{background:#f2f5fa;border:1px solid var(--line);padding:8px 11px;border-radius:8px;font-size:13px}
+.tablewrap{overflow:auto;max-height:360px;border:1px solid var(--line);border-radius:8px;margin-top:14px}table{border-collapse:collapse;width:100%;font-size:13px}th,td{text-align:left;padding:9px 10px;border-bottom:1px solid #e8edf3;white-space:nowrap}th{position:sticky;top:0;background:#f8fafc}
+small{color:var(--muted)}.topline{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+@media(max-width:650px){.grid{grid-template-columns:1fr}.field.full{grid-column:auto}.card{padding:15px}h1{font-size:20px}}
+</style>
+</head>
+<body>
+<header><div class="wrap"><h1>Maintenance Outstanding Management</h1><p>Panvelkar Estate Stanford CHS Ltd. · Admin access only</p></div></header>
+<main>
+<section id="loginCard" class="card">
+<h2>Admin sign in</h2><p class="sub">Sign in using an active society administrator account.</p>
+<form id="loginForm" class="grid">
+<div class="field"><label for="email">Email address</label><input id="email" type="email" autocomplete="username" required></div>
+<div class="field"><label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required></div>
+<div class="field full"><button type="submit" id="loginBtn">Sign in</button></div>
+</form><div id="loginNotice" class="notice"></div>
+</section>
+<section id="adminApp" class="hidden">
+<div class="card topline"><div><strong id="welcome"></strong><div class="sub" style="margin:3px 0 0">Use individual edits for corrections or Excel upload for a full refresh.</div></div><button id="logoutBtn" class="secondary">Sign out</button></div>
+<div class="card">
+<h2>1. Update one flat or shop</h2><p class="sub">Save a single verified outstanding amount. Amounts are in Indian rupees.</p>
+<form id="singleForm" class="grid">
+<div class="field"><label for="wing">Wing / Unit group</label><select id="wing" required><option value="">Select wing</option><option>R1A</option><option>R1B</option><option>R2</option><option>R3</option><option>R4</option><option>Shop</option></select></div>
+<div class="field"><label for="unit">Flat / Shop number</label><input id="unit" required placeholder="e.g. 101 or 1001"></div>
+<div class="field"><label for="amount">Outstanding amount (₹)</label><input id="amount" type="number" min="0" step="0.01" required placeholder="0.00"></div>
+<div class="field"><label for="note">Source / note (optional)</label><input id="note" placeholder="e.g. verified ledger correction"></div>
+<div class="field full"><button type="submit" id="saveOneBtn">Save outstanding</button></div>
+</form><div id="singleNotice" class="notice"></div>
+</div>
+<div class="card">
+<h2>2. Upload Excel / CSV</h2><p class="sub">Required columns: <b>Wing</b>, <b>Flat / Unit</b>, and <b>Outstanding</b>. The backup format is supported. For shop rows, the Unit Type column can identify shops.</p>
+<div class="grid">
+<div class="field full"><label for="file">Choose maintenance file</label><input id="file" type="file" accept=".xlsx,.xls,.csv"></div>
+</div>
+<div class="actions"><button id="previewBtn" type="button" class="secondary">Preview and validate</button><button id="uploadBtn" type="button" disabled>Confirm upload</button><button id="cancelPreviewBtn" type="button" class="ghost hidden">Clear preview</button></div>
+<div id="bulkNotice" class="notice"></div><div id="bulkStats" class="stats"></div>
+<div id="previewWrap" class="tablewrap hidden"><table><thead><tr><th>Excel row</th><th>Wing</th><th>Flat / Unit</th><th>Outstanding (₹)</th><th>Validation</th></tr></thead><tbody id="previewBody"></tbody></table></div>
+</div>
+<div class="card">
+<div class="topline"><div><h2 style="margin-bottom:4px">Current uploaded balances</h2><p class="sub" style="margin:0">The latest balances currently stored for RFID eligibility checks.</p></div><button id="refreshBtn" class="secondary">Refresh list</button></div>
+<div class="stats" id="currentStats"></div>
+<div class="tablewrap"><table><thead><tr><th>Wing</th><th>Flat / Unit</th><th>Outstanding (₹)</th><th>Source file</th><th>Last updated</th></tr></thead><tbody id="currentBody"></tbody></table></div>
+</div>
+</section>
+</main>
+<script>
+(() => {
+const SUPABASE_URL = "https://zawatmovyrjcpgxkqcqq.supabase.co";
+const SUPABASE_KEY = "sb_publishable_x9u_XeQlrOil8VRZ6Kcbjg_48JRq51y";
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const $ = id => document.getElementById(id);
+let user = null, previewRows = [];
+const setNotice = (id, text, type="info") => { const el=$(id); el.className="notice "+type; el.textContent=text; };
+const clearNotice = id => { const el=$(id); el.className="notice"; el.textContent=""; };
+const money = n => Number(n||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
+const normWing = (value, unitType, unitLabel) => {
+ let w=String(value||"").trim().toUpperCase().replace(/[\s_-]/g,"");
+ const utype=String(unitType||"").trim().toLowerCase();
+ if (utype==="shop" || /^shop\b/i.test(String(unitLabel||""))) return "Shop";
+ if (w==="R1A" || w==="R1-A") return "R1A";
+ if (w==="R1B" || w==="R1-B") return "R1B";
+ if (["R2","R3","R4","SHOP"].includes(w)) return w;
+ return w;
+};
+const normUnit = (value, wing) => {
+ let s=String(value??"").trim().toUpperCase();
+ if (!s) return "";
+ if (wing==="Shop") { const m=s.match(/(\d+)\s*$/); return m ? String(parseInt(m[1],10)) : ""; }
+ s=s.replace(/^R1\s*[- ]?A\s*[- ]?/i,"").replace(/^R1\s*[- ]?B\s*[- ]?/i,"").replace(/^R([234])\s*[- ]?/i,"$1-");
+ if (/^\d+-\d+$/.test(s)) s=s.split("-").pop();
+ const m=s.match(/(\d+)\s*$/);
+ return m ? String(parseInt(m[1],10)) : "";
+};
+const authUser = async () => {
+ const {data:{session},error}=await db.auth.getSession();
+ if(error) throw error;
+ if(!session) return null;
+ const {data:profile,error:pe}=await db.from("profiles").select("id,full_name,email,role,active").eq("id",session.user.id).maybeSingle();
+ if(pe) throw pe;
+ if(!profile || !profile.active || !["admin","super_admin"].includes(profile.role)) {
+   await db.auth.signOut();
+   throw new Error("This account does not have active administrator access.");
+ }
+ return {session,profile};
+};
+const showApp = profile => {
+ $("loginCard").classList.add("hidden"); $("adminApp").classList.remove("hidden");
+ $("welcome").textContent="Signed in as "+(profile.full_name||profile.email||"Administrator")+" · "+profile.role;
+ loadCurrent();
+};
+const loadCurrent = async () => {
+ $("currentBody").innerHTML="<tr><td colspan='5'>Loading…</td></tr>";
+ const {data,error}=await db.from("rfid_maintenance_outstanding").select("wing,unit_number,outstanding_amount,source_file_name,updated_at").order("wing").order("unit_number").limit(2000);
+ if(error){$("currentBody").innerHTML="";setNotice("bulkNotice","Could not load balances: "+error.message,"error");return;}
+ $("currentBody").innerHTML="";
+ let total=0, over=0;
+ (data||[]).forEach(r=>{total+=Number(r.outstanding_amount||0);if(Number(r.outstanding_amount)>7000)over++;
+ const tr=document.createElement("tr");[r.wing,r.unit_number,"₹"+money(r.outstanding_amount),r.source_file_name||"—",r.updated_at?new Date(r.updated_at).toLocaleString("en-IN"):"—"].forEach(v=>{const td=document.createElement("td");td.textContent=v;tr.appendChild(td)});$("currentBody").appendChild(tr);});
+ $("currentStats").innerHTML="";
+ [["Records",data.length],["Total outstanding","₹"+money(total)],["Above ₹7,000",over]].forEach(([k,v])=>{const el=document.createElement("span");el.textContent=k+": "+v;$("currentStats").appendChild(el)});
+ if(!data.length)$("currentBody").innerHTML="<tr><td colspan='5'>No maintenance balances loaded yet.</td></tr>";
+};
+const validateRows = async rows => {
+ const {data:units,error}=await db.from("rfid_unit_master").select("wing,unit_number,active").eq("active",true);
+ if(error) throw new Error("Unable to validate against the active unit list: "+error.message);
+ const known=new Set((units||[]).map(u=>u.wing+"|"+normUnit(u.unit_number,u.wing)));
+ const seen=new Set(); const checked=[];
+ rows.forEach((r,i)=>{
+   const wing=normWing(r.wing,r.unitType,r.unitLabel);
+   const unit=normUnit(r.unit,wing);
+   const amount=Number(String(r.amount??"").replace(/[,₹\s]/g,""));
+   let issue="";
+   if(!wing || !["R1A","R1B","R2","R3","R4","Shop"].includes(wing)) issue="Unknown wing";
+   else if(!unit) issue="Missing/invalid unit";
+   else if(!Number.isFinite(amount)||amount<0) issue="Invalid outstanding amount";
+   else if(!known.has(wing+"|"+unit)) issue="Unit not found in active unit list";
+   else if(seen.has(wing+"|"+unit)) issue="Duplicate wing + unit in file";
+   if(!issue) seen.add(wing+"|"+unit);
+   checked.push({rowNumber:r.rowNumber||i+2,wing,unit,amount,issue});
+ });
+ return checked;
+};
+$("loginForm").addEventListener("submit",async e=>{
+ e.preventDefault();clearNotice("loginNotice");$("loginBtn").disabled=true;$("loginBtn").textContent="Signing in…";
+ try{const {error}=await db.auth.signInWithPassword({email:$("email").value.trim(),password:$("password").value});if(error)throw error;const result=await authUser();if(!result)throw new Error("Sign-in session was not created.");user=result.session.user;showApp(result.profile);}
+ catch(err){setNotice("loginNotice",err.message||"Sign in failed.","error");}
+ finally{$("loginBtn").disabled=false;$("loginBtn").textContent="Sign in";}
+});
+$("logoutBtn").addEventListener("click",async()=>{await db.auth.signOut();location.reload()});
+$("singleForm").addEventListener("submit",async e=>{
+ e.preventDefault();clearNotice("singleNotice");$("saveOneBtn").disabled=true;
+ try{
+  const wing=normWing($("wing").value,"","");
+  const unit=normUnit($("unit").value,wing);
+  const amount=Number($("amount").value);
+  if(!unit||!Number.isFinite(amount)||amount<0)throw new Error("Enter a valid flat/shop number and a non-negative amount.");
+  const {data:known,error:ke}=await db.from("rfid_unit_master").select("unit_number").eq("wing",wing).eq("active",true);
+  if(ke)throw ke;
+  if(!(known||[]).some(u=>normUnit(u.unit_number,wing)===unit))throw new Error("This wing and unit number do not match an active unit.");
+  const {error}=await db.from("rfid_maintenance_outstanding").upsert({wing,unit_number:unit,outstanding_amount:amount,source_file_name:$("note").value.trim()||"Manual admin update",uploaded_by:user.id,uploaded_at:new Date().toISOString(),updated_at:new Date().toISOString()},{onConflict:"wing,unit_number"});
+  if(error)throw error;
+  setNotice("singleNotice","Saved "+wing+" / "+unit+" with outstanding ₹"+money(amount)+".","ok");$("amount").value="";$("note").value="";await loadCurrent();
+ }catch(err){setNotice("singleNotice",err.message||"Unable to save this balance.","error")}
+ finally{$("saveOneBtn").disabled=false}
+});
+$("previewBtn").addEventListener("click",async()=>{
+ clearNotice("bulkNotice");$("uploadBtn").disabled=true;previewRows=[];$("previewBody").innerHTML="";$("bulkStats").innerHTML="";
+ const file=$("file").files[0];if(!file){setNotice("bulkNotice","Choose an Excel or CSV file first.","error");return}
+ $("previewBtn").disabled=true;$("previewBtn").textContent="Validating…";
+ try{
+  const bytes=await file.arrayBuffer();const workbook=XLSX.read(bytes,{type:"array",cellDates:true});
+  const sheet=workbook.Sheets[workbook.SheetNames[0]];
+  const raw=XLSX.utils.sheet_to_json(sheet,{defval:"",raw:false});
+  if(!raw.length)throw new Error("The selected file has no data rows.");
+  const first=raw[0];const keys=Object.keys(first);
+  const findKey=(names)=>keys.find(k=>names.includes(k.trim().toLowerCase().replace(/\s+/g," ")));
+  const kWing=findKey(["wing"]),kUnit=findKey(["flat / unit","flat/unit","flat /unit","unit","flat number","unit number"]),kAmount=findKey(["outstanding","outstanding amount","balance outstanding"]),kType=findKey(["unit type","type"]),kLabel=findKey(["flat / unit","flat/unit","unit label"]);
+  if(!kWing||!kUnit||!kAmount)throw new Error("Required columns not found. Include Wing, Flat / Unit, and Outstanding.");
+  const input=raw.map((r,i)=>({rowNumber:i+2,wing:r[kWing],unit:r[kUnit],amount:r[kAmount],unitType:kType?r[kType]:"",unitLabel:kLabel?r[kLabel]:""}));
+  const checked=await validateRows(input);previewRows=checked;
+  const ok=checked.filter(x=>!x.issue).length,bad=checked.length-ok;
+  [["Rows",checked.length],["Valid",ok],["Errors",bad],["Source",file.name]].forEach(([k,v])=>{const s=document.createElement("span");s.textContent=k+": "+v;$("bulkStats").appendChild(s)});
+  checked.slice(0,250).forEach(r=>{const tr=document.createElement("tr");[r.rowNumber,r.wing,r.unit,"₹"+money(r.amount),r.issue||"Ready"].forEach((v,i)=>{const td=document.createElement("td");td.textContent=v;if(i===4&&r.issue)td.style.color="#b42318";tr.appendChild(td)});$("previewBody").appendChild(tr)});
+  $("previewWrap").classList.remove("hidden");$("cancelPreviewBtn").classList.remove("hidden");
+  if(bad){setNotice("bulkNotice","Please correct the "+bad+" invalid row(s) and upload again. No data has been changed.","error")}
+  else{setNotice("bulkNotice","Validation passed. Confirm upload to update all "+ok+" balances. Existing balances for these wing/unit pairs will be replaced.","ok");$("uploadBtn").disabled=false}
+ }catch(err){setNotice("bulkNotice",err.message||"Could not read the selected file.","error")}
+ finally{$("previewBtn").disabled=false;$("previewBtn").textContent="Preview and validate"}
+});
+$("uploadBtn").addEventListener("click",async()=>{
+ if(!previewRows.length||previewRows.some(r=>r.issue))return;
+ if(!confirm("Upload "+previewRows.length+" validated maintenance balances? Matching existing balances will be updated."))return;
+ $("uploadBtn").disabled=true;setNotice("bulkNotice","Uploading validated balances…","info");
+ try{
+  const file=$("file").files[0];const rows=previewRows.map(r=>({wing:r.wing,unit_number:r.unit,outstanding_amount:r.amount,source_file_name:file.name,uploaded_by:user.id,uploaded_at:new Date().toISOString(),updated_at:new Date().toISOString()}));
+  let saved=0;
+  for(let i=0;i<rows.length;i+=100){const {error}=await db.from("rfid_maintenance_outstanding").upsert(rows.slice(i,i+100),{onConflict:"wing,unit_number"});if(error)throw new Error("Batch starting at row "+(i+1)+": "+error.message);saved+=Math.min(100,rows.length-i)}
+  setNotice("bulkNotice","Upload complete: "+saved+" maintenance balances saved from "+file.name+".","ok");
+  previewRows=[];$("uploadBtn").disabled=true;$("previewWrap").classList.add("hidden");$("cancelPreviewBtn").classList.add("hidden");$("bulkStats").innerHTML="";await loadCurrent();
+ }catch(err){setNotice("bulkNotice","Upload stopped: "+err.message+". Some earlier batches may already have been saved; review the current list before retrying.","error");$("uploadBtn").disabled=false}
+});
+$("cancelPreviewBtn").addEventListener("click",()=>{previewRows=[];$("uploadBtn").disabled=true;$("previewWrap").classList.add("hidden");$("cancelPreviewBtn").classList.add("hidden");$("bulkStats").innerHTML="";clearNotice("bulkNotice")});
+$("refreshBtn").addEventListener("click",loadCurrent);
+(async()=>{try{const result=await authUser();if(result){user=result.session.user;showApp(result.profile)}}catch(e){/* Signed-out state remains visible. */}})();
+})();
+</script>
+</body>
+</html>
