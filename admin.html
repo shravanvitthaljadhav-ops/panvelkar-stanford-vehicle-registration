@@ -309,13 +309,32 @@ function renderMaintenance(){
 }
 function clearMaintenanceSingle(){['maintenanceWing','maintenanceUnit','maintenanceAmount'].forEach(id=>document.getElementById(id).value='');document.getElementById('maintenanceSingleMsg').textContent='';}
 async function saveMaintenanceSingle(){
- const wing=document.getElementById('maintenanceWing').value.trim().toUpperCase(),unit=normalizedUnit(document.getElementById('maintenanceUnit').value),raw=document.getElementById('maintenanceAmount').value,amount=Number(raw),msg=document.getElementById('maintenanceSingleMsg');
+ const wing=document.getElementById('maintenanceWing').value.trim().toUpperCase(),unit=normalizedUnit(document.getElementById('maintenanceUnit').value),raw=document.getElementById('maintenanceAmount').value,amount=Number(raw),msg=document.getElementById('maintenanceSingleMsg'),btn=document.querySelector('#maintenance .form-actions button.primary');
  if(!wing||!unit||raw===''||!Number.isFinite(amount)||amount<0){msg.textContent='Select a wing, enter a flat/shop number and a valid non-negative outstanding amount.';return;}
- msg.textContent='Verifying active unit…';const {data:u,error:ue}=await db.from('rfid_unit_master').select('unit_number').eq('wing',wing).eq('unit_number',unit).eq('active',true).maybeSingle();
- if(ue||!u){msg.textContent='Unit not verified. Check the wing and flat/shop number; no changes were saved.';return;}
- const {data:{user}}=await db.auth.getUser();if(!user){msg.textContent='Your session has expired. Please sign in again.';return;}const now=new Date().toISOString();
- const {error}=await db.from('rfid_maintenance_outstanding').upsert({wing,unit_number:unit,outstanding_amount:amount,source_file_name:'Manual admin update',uploaded_by:user.id,uploaded_at:now,updated_at:now},{onConflict:'wing,unit_number'});
- if(error){msg.textContent='Save failed: '+error.message;return;}msg.textContent='Outstanding saved for '+wing+'-'+unit+'.';clearMaintenanceSingle();await loadMaintenance();
+ if(btn){btn.disabled=true;btn.textContent='Saving…';}
+ msg.textContent='Verifying active unit…';
+ try{
+  const {data:u,error:ue}=await db.from('rfid_unit_master').select('unit_number').eq('wing',wing).eq('unit_number',unit).eq('active',true).maybeSingle();
+  if(ue)throw new Error('Could not verify the unit: '+ue.message);
+  if(!u)throw new Error('Unit not verified. Check the wing and flat/shop number; no changes were saved.');
+  const {data:{user},error:authError}=await db.auth.getUser();
+  if(authError)throw new Error('Could not verify your admin session: '+authError.message);
+  if(!user)throw new Error('Your session has expired. Please sign in again.');
+  const now=new Date().toISOString();
+  const {data:saved,error}=await db.from('rfid_maintenance_outstanding').upsert({wing,unit_number:unit,outstanding_amount:amount,source_file_name:'Manual admin update',uploaded_by:user.id,uploaded_at:now,updated_at:now},{onConflict:'wing,unit_number'}).select('wing,unit_number,outstanding_amount').single();
+  if(error)throw new Error(error.message);
+  if(!saved||Number(saved.outstanding_amount)!==amount)throw new Error('The database did not confirm the updated balance. Please refresh and try again.');
+  await loadMaintenance();
+  document.getElementById('maintenanceWing').value='';
+  document.getElementById('maintenanceUnit').value='';
+  document.getElementById('maintenanceAmount').value='';
+  msg.textContent='Saved successfully: '+wing+'-'+unit+' — '+formatRupees(amount)+'.';
+ }catch(e){
+  console.error('Maintenance save failed',e);
+  msg.textContent='Save failed: '+(e?.message||'Unexpected error. Please try again.');
+ }finally{
+  if(btn){btn.disabled=false;btn.textContent='Save Outstanding';}
+ }
 }
 function normalizeHeader(v){return String(v||'').toLowerCase().replace(/[^a-z0-9]/g,'');}
 function findColumn(h,names){const n=h.map(normalizeHeader);for(const x of names){const i=n.indexOf(normalizeHeader(x));if(i>=0)return i;}return-1;}
