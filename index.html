@@ -493,8 +493,13 @@ function validateVehicle(card, showNativeMessage = false) {
 }
 function updateSubmitState() {
   const limitCheck = validateVehicleCategoryLimits();
+  const residentFields = ["name","mobile","wing","unit","residentStatus"]
+    .map(id => document.getElementById(id));
+  const residentFieldsValid = residentFields.every(el => el && el.value.trim() !== "" && el.checkValidity());
   const vehiclesValid = vehicleCards().length > 0 && vehicleCards().every(card => validateVehicle(card));
-  const allowed = !isSubmitting && form.checkValidity() && vehiclesValid && limitCheck.ok;
+  // Do not use form.checkValidity() here: native validation can keep Submit disabled
+  // when the RFID selector is intentionally disabled for 2-/3-wheelers.
+  const allowed = !isSubmitting && residentFieldsValid && vehiclesValid && limitCheck.ok;
   submitBtn.disabled = !allowed;
   submitBtn.style.opacity = allowed ? "1" : ".55";
   if (allowed) submitBtn.removeAttribute("aria-disabled");
