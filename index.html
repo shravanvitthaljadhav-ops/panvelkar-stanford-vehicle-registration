@@ -895,70 +895,7 @@ form.addEventListener("submit", async (event) => {
 </script>
 
 
-<script>
-(function(){
-  const wing = document.querySelector('#wing, select[name="wing"]');
-  const flat = document.querySelector('#unit_number, #unit, select[name="unit_number"], select[name="unit"]');
-  if(!wing || !flat) return;
 
-  // Keep a local fallback master so the verification HTML works without Supabase.
-  const units = {
-    "Shop": Array.from({length:14}, (_,i)=>String(i+1)),
-    "R1A": Array.from({length:117}, (_,i)=> {
-      const floor = Math.floor(i/9)+1, pos = (i%9)+1;
-      return `R1A-${String(floor).padStart(2,'0')}${String(pos).padStart(2,'0')}`;
-    }),
-    "R1B": Array.from({length:14}, (_,i)=> {
-      const floor = Math.floor(i/2)+1, pos = (i%2)+1;
-      return `R1B-${String(floor).padStart(2,'0')}${String(pos).padStart(2,'0')}`;
-    }),
-    "R2": Array.from({length:96}, (_,i)=> {
-      const floor = Math.floor(i/8)+1, pos = (i%8)+1;
-      return `R2-${String(floor).padStart(2,'0')}${String(pos).padStart(2,'0')}`;
-    }),
-    "R3": Array.from({length:96}, (_,i)=> {
-      const floor = Math.floor(i/8)+1, pos = (i%8)+1;
-      return `R3-${String(floor).padStart(2,'0')}${String(pos).padStart(2,'0')}`;
-    }),
-    "R4": Array.from({length:96}, (_,i)=> {
-      const floor = Math.floor(i/8)+1, pos = (i%8)+1;
-      return `R4-${String(floor).padStart(2,'0')}${String(pos).padStart(2,'0')}`;
-    })
-  };
-
-  const excluded = new Set(["R1A-0809","R1A-1209","R2-0808","R3-0808","R4-0808"]);
-
-  function populateFlatList(wingValue){
-    flat.innerHTML = '<option value="">Select Flat Number</option>';
-    flat.disabled = !wingValue;
-    if(!wingValue || !units[wingValue]) return;
-
-    let list = units[wingValue].filter(x => !excluded.has(x));
-    // For Shop, preserve simple shop numbering.
-    list.forEach(v => {
-      const opt = document.createElement('option');
-      opt.value = v;
-      opt.textContent = v;
-      flat.appendChild(opt);
-    });
-    flat.disabled = false;
-    flat.style.pointerEvents = 'auto';
-  }
-
-  wing.addEventListener('change', function(){
-    populateFlatList(this.value);
-  });
-
-  // Fix cases where another script resets/replaces the dropdown.
-  const observer = new MutationObserver(function(){
-    if(wing.value && flat.options.length <= 1) populateFlatList(wing.value);
-  });
-  observer.observe(flat, {childList:true});
-
-  // Initial state.
-  populateFlatList(wing.value);
-})();
-</script>
 
 <div style="text-align:center;margin:28px 0 16px;font-size:12px"><a href="admin.html" style="color:#6b7280;text-decoration:none">Admin Login</a></div>\n</body>
 </html>
