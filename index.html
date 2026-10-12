@@ -697,21 +697,83 @@ function showMaintenanceRestriction() {
   modal.innerHTML = '<div style="max-width:430px;width:100%;background:#fff;border-radius:18px;padding:26px;box-shadow:0 20px 60px rgba(0,0,0,.22);font-family:inherit"><div style="font-size:28px;margin-bottom:10px">⚠️</div><h3 style="margin:0 0 10px;color:#102238">Vehicle Registration Restricted</h3><p style="margin:0;color:#64748b;line-height:1.6">Please clear the maintenance outstanding amount to register your vehicle. Vehicle registration is restricted when the maintenance outstanding amount is more than ₹7,000.</p><button style="margin-top:18px;width:100%;background:#102238;color:#fff;border:0;border-radius:10px;padding:12px;font-weight:700" onclick="this.parentElement.parentElement.remove()">OK</button></div>';
   document.body.appendChild(modal);
 }
-function buildUnits(wing) {
-  unitEl.innerHTML = '<option value="">Select unit</option>';
+let unitLoadRequestId = 0;
+
+async function buildUnits(wing) {
+  const requestId = ++unitLoadRequestId;
   unitEl.disabled = true;
-  if (!wing || !db) return;
-  db.from("rfid_unit_master").select("unit_number").eq("wing",wing).eq("active",true).order("unit_number",{ascending:true})
-    .then(({data,error}) => {
-      if (error) { showMessage("Unable to load the unit list. Please refresh and try again.","error"); return; }
-      for (const row of data || []) {
-        const option = document.createElement("option");
-        option.value = row.unit_number;
-        option.textContent = wing === "Shop" ? "Shop-" + row.unit_number : wing + "-" + String(row.unit_number).padStart(4,"0");
-        unitEl.appendChild(option);
+  unitEl.innerHTML = '<option value="">Loading flats/shops…</option>';
+
+  if (!wing) {
+    unitEl.innerHTML = '<option value="">Select wing first</option>';
+    return;
+  }
+  if (!db) {
+    unitEl.innerHTML = '<option value="">Unit service unavailable</option>';
+    showMessage("The unit list could not connect to the registration service. Please refresh and try again.","error");
+    return;
+  }
+
+  try {
+    const { data, error } = await db
+      .from("rfid_unit_master")
+      .select("unit_number")
+      .eq("wing", wing)
+      .eq("active", true)
+      .order("unit_number", { ascending: true });
+
+    // Ignore an older response if the resident has already selected another wing.
+    if (requestId !== unitLoadRequestId) return;
+
+    if (error) {
+      console.error("Unit list load failed:", error);
+      unitEl.innerHTML = '<option value="">Unable to load units — select wing again</option>';
+      showMessage("Unable to load flats/shops for " + wing + ". Please select the wing again. If the issue continues, the unit-master access needs to be checked.","error");
+      return;
+    }
+
+    const rows = Array.isArray(data) ? data : [];
+    unitEl.innerHTML = '<option value="">Select flat/shop number</option>';
+
+    if (rows.length === 0) {
+      unitEl.innerHTML = '<option value="">No active flats/shops found</option>';
+      showMessage("No active flats/shops were found for " + wing + ". The society unit master needs to be checked.","error");
+      return;
+    }
+
+    for (const row of rows) {
+      if (row.unit_number === null || row.unit_number === undefined) continue;
+      const raw = String(row.unit_number).trim();
+      if (!raw) continue;
+
+      const option = document.createElement("option");
+      // Keep the database value unchanged for verification; only format the visible label.
+      option.value = raw;
+      const prefix = wing + "-";
+      if (raw.toLowerCase().startsWith(prefix.toLowerCase())) {
+        option.textContent = raw;
+      } else if (wing === "Shop") {
+        option.textContent = "Shop-" + raw;
+      } else {
+        option.textContent = wing + "-" + raw.padStart(4, "0");
       }
-      unitEl.disabled = false;
-    });
+      unitEl.appendChild(option);
+    }
+
+    if (unitEl.options.length <= 1) {
+      unitEl.innerHTML = '<option value="">No valid flats/shops found</option>';
+      showMessage("The unit master returned no usable flat/shop numbers for " + wing + ". Please ask the society admin to verify the unit data.","error");
+      return;
+    }
+
+    unitEl.disabled = false;
+    clearMessage();
+  } catch (error) {
+    if (requestId !== unitLoadRequestId) return;
+    console.error("Unit list load exception:", error);
+    unitEl.innerHTML = '<option value="">Unit list failed — select wing again</option>';
+    showMessage("The flat/shop list could not be loaded. Please check your internet connection and select the wing again.","error");
+  }
 }
 function showNativeValidation() {
   if (!form.checkValidity()) { form.reportValidity(); return false; }
